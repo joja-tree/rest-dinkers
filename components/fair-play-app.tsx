@@ -169,7 +169,7 @@ function Header({ trailing, user, saveState, onSignIn }: { trailing?: React.Reac
       </div>
       <div className="header-actions">
         {trailing}
-        {user ? <div className="account-pill"><span><strong>{user.displayName || user.email?.split("@")[0] || "Player"}</strong><small>{saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Offline"}</small></span><button onClick={() => signOut(firebaseAuth())} aria-label="Sign Out"><LogOut size={16} /></button></div> : firebaseConfigured && onSignIn ? <button className="button secondary sign-in-button" onClick={onSignIn}>Sign In To Save</button> : !trailing && <span className="status-pill">MVP · Local Play</span>}
+        {user ? <div className="account-pill"><span><strong>{user.displayName || user.email?.split("@")[0] || "Player"}</strong><small>{saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Offline"}</small></span><button onClick={() => signOut(firebaseAuth())} aria-label="Sign Out"><LogOut size={16} /></button></div> : firebaseConfigured && onSignIn ? <button className="button secondary sign-in-button" onClick={onSignIn}>Sign In</button> : !trailing && <span className="status-pill">MVP · Local Play</span>}
       </div>
     </header>
   );
