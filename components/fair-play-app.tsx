@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import { Check, LogOut, Plus, RotateCcw, Trash2 } from "lucide-react";
 import type { User } from "firebase/auth";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
-import type { Match, Session, Team } from "@/lib/domain";
+import type { GameFormat, Match, Session, Team } from "@/lib/domain";
 import { applyCompletedRound } from "@/lib/fair-play";
 import { out, point, undo } from "@/lib/scoring";
 import { sessionSchema } from "@/lib/schemas";
 import { createSession } from "@/lib/session";
 import { firebaseAuth, firebaseConfigured } from "@/firebase/client";
 import { archiveSession, loadActiveSession, saveActiveSession } from "@/firebase/sessions";
+import { DEFAULT_RULES, RULE_PRESETS } from "@/lib/game-rules";
 
 const STORAGE_KEY = "rest-dinkers-session-v1";
+const FORMAT_KEY = "rest-dinkers-game-format";
 
 export function FairPlayApp() {
   const [session, setSession] = useState<Session | null>(null);
@@ -180,6 +182,18 @@ function Setup({ onCreate, user, saveState, onSignIn }: { onCreate: (session: Se
   const [courts, setCourts] = useState(1);
   const [players, setPlayers] = useState(["Alex", "Bea", "Cal", "Dani", "Eli", "Fran"]);
   const [error, setError] = useState("");
+  const [format, setFormat] = useState<GameFormat>("rest-dinkers-doubles");
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(FORMAT_KEY) as GameFormat | null;
+    if (saved && saved in RULE_PRESETS) setFormat(saved);
+  }, []);
+
+  function selectFormat(next: GameFormat) {
+    setFormat(next);
+    window.localStorage.setItem(FORMAT_KEY, next);
+    setError("");
+  }
 
   function submit() {
     const parsed = sessionSchema.safeParse({ name, courts, players });
@@ -187,7 +201,12 @@ function Setup({ onCreate, user, saveState, onSignIn }: { onCreate: (session: Se
       setError(parsed.error.issues[0]?.message ?? "Check the session details.");
       return;
     }
-    onCreate(createSession(parsed.data.name, parsed.data.players, parsed.data.courts));
+    const required = RULE_PRESETS[format].teamSize * 2;
+    if (parsed.data.players.length < required) {
+      setError(`At least ${required} players are required for ${RULE_PRESETS[format].name}.`);
+      return;
+    }
+    onCreate(createSession(parsed.data.name, parsed.data.players, parsed.data.courts, format));
   }
 
   return (
@@ -202,6 +221,18 @@ function Setup({ onCreate, user, saveState, onSignIn }: { onCreate: (session: Se
         <section className="card setup-card">
           <h2>Start a Session</h2>
           <p className="subtle">Add your group and we’ll build the first two rounds.</p>
+          <div className="field">
+            <label>Game Format</label>
+            <div className="format-options">
+              {(Object.values(RULE_PRESETS) as (typeof RULE_PRESETS)[GameFormat][]).map((rules) => (
+                <button key={rules.id} className={format === rules.id ? "active" : ""} onClick={() => selectFormat(rules.id)}>
+                  <strong>{rules.name}</strong><small>{rules.description}</small>
+                  {rules.id === "rest-dinkers-doubles" && <em>Saved Custom</em>}
+                </button>
+              ))}
+            </div>
+            <p className="format-note">Your selected format is remembered for the next session.</p>
+          </div>
           <div className="field">
             <label htmlFor="session-name">Session Name</label>
             <input id="session-name" className="input" placeholder="Session Name" value={name} onChange={(event) => setName(event.target.value)} />
@@ -218,7 +249,7 @@ function Setup({ onCreate, user, saveState, onSignIn }: { onCreate: (session: Se
               {players.map((player, index) => (
                 <div className="player-row" key={index}>
                   <input className="input" aria-label={`Player ${index + 1}`} value={player} onChange={(event) => setPlayers(players.map((value, i) => i === index ? event.target.value : value))} />
-                  <button className="remove" aria-label={`Remove ${player || `player ${index + 1}`}`} disabled={players.length <= 4} onClick={() => setPlayers(players.filter((_, i) => i !== index))}><Trash2 size={17} /></button>
+                  <button className="remove" aria-label={`Remove ${player || `player ${index + 1}`}`} disabled={players.length <= RULE_PRESETS[format].teamSize * 2} onClick={() => setPlayers(players.filter((_, i) => i !== index))}><Trash2 size={17} /></button>
                 </div>
               ))}
             </div>
@@ -239,7 +270,7 @@ function SessionView({ session, onScore, onAdvance, onEnd, user, saveState, onSi
       <Header user={user} saveState={saveState} onSignIn={onSignIn} trailing={<button className="button secondary" onClick={onEnd}>End Session</button>} />
       <div className="content">
         <div className="session-header">
-          <div><span className="eyebrow">Live Session</span><h1>{session.name}</h1><p className="subtle">{session.players.length} players · {session.courts} court{session.courts > 1 ? "s" : ""}</p></div>
+          <div><span className="eyebrow">Live Session</span><h1>{session.name}</h1><p className="subtle">{session.rules.name} · {session.players.length} players · {session.courts} court{session.courts > 1 ? "s" : ""}</p></div>
         </div>
         <div className="round-grid">
           <div className="round-column">
@@ -348,15 +379,15 @@ function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure, u
       <Header user={user} saveState={saveState} onSignIn={onSignIn} />
       <div className="content scorer">
         <div className="scorer-meta">
-          <p className="eyebrow">Court {match.court} · Double Serve</p>
+          <p className="eyebrow">Court {match.court} · {match.rules.name}</p>
           <button className="scorer-undo" disabled={!match.history.length} onClick={onUndo}><RotateCcw size={15} /> Undo</button>
         </div>
         {editingSetup && setupEditable
           ? <LiveMatchSetupEditor match={match} session={session} onChange={onConfigure} onDone={() => setEditingSetup(false)} />
           : <CollapsedMatchSetup match={match} session={session} canEdit={setupEditable} onEdit={() => setEditingSetup(true)} />}
         <div className="scoreboard">
-          <div className="score-names"><span>Team A</span><span>Team B</span><span>Server</span></div>
-          <div className="scores"><strong>{match.scoreA}</strong><strong>{match.scoreB}</strong><strong className="server">{match.server}</strong></div>
+          <div className="score-names"><span>Team A</span><span>Team B</span><span>{match.rules.teamSize === 1 ? "Service Side" : "Server"}</span></div>
+          <div className="scores"><strong>{match.scoreA}</strong><strong>{match.scoreB}</strong><strong className={`server ${match.rules.teamSize === 1 ? "service-side" : ""}`}>{match.rules.teamSize === 1 ? ((match.servingTeam === "A" ? match.scoreA : match.scoreB) % 2 === 0 ? "Right" : "Left") : match.server}</strong></div>
           <RoundTimer startedAt={match.startedAt} endedAt={match.endedAt} />
           <div className="serving">Team {match.servingTeam} · {playerName(serving[match.server - 1], session)} Serving</div>
           {match.winner && <div className="complete">Team {match.winner} Wins!</div>}
@@ -379,31 +410,37 @@ function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure, u
 
 function MatchSetup({ match, session, onChange }: { match: Match; session: Session; onChange: (match: Match) => void }) {
   function startingTeam(team: "A" | "B") {
-    const firstServer = team === "A" ? match.teamA[0] : match.teamB[0];
-    onChange({ ...match, servingTeam: team, server: 1, serveCounts: { [firstServer]: 1 } });
+    const startingPlayers = team === "A" ? match.teamA : match.teamB;
+    const firstServer = startingPlayers[match.rules.openingServer - 1] ?? startingPlayers[0];
+    onChange({ ...match, servingTeam: team, server: match.rules.openingServer, serveCounts: { [firstServer]: 1 } });
   }
   function swap(team: "A" | "B") {
-    const swapped: Team = team === "A" ? [match.teamA[1], match.teamA[0]] : [match.teamB[1], match.teamB[0]];
+    if (match.rules.teamSize === 1) return;
+    const selected = team === "A" ? match.teamA : match.teamB;
+    if (selected.length !== 2) return;
+    const swapped: Team = [selected[1], selected[0]];
     const teamA = team === "A" ? swapped : match.teamA;
     const teamB = team === "B" ? swapped : match.teamB;
     const servingPlayers = match.servingTeam === "A" ? teamA : teamB;
-    onChange({ ...match, teamA, teamB, server: 1, serveCounts: { [servingPlayers[0]]: 1 } });
+    onChange({ ...match, teamA, teamB, server: match.rules.openingServer, serveCounts: { [servingPlayers[0]]: 1 } });
   }
   function startMatch() {
     if (match.servingTeam === "B") {
-      onChange({ ...match, teamA: match.teamB, teamB: match.teamA, servingTeam: "A", server: 1, serveCounts: { [match.teamB[0]]: 1 }, setupComplete: true, startedAt: Date.now() });
+      const openingPlayer = match.teamB[match.rules.openingServer - 1] ?? match.teamB[0];
+      onChange({ ...match, teamA: match.teamB, teamB: match.teamA, servingTeam: "A", server: match.rules.openingServer, serveCounts: { [openingPlayer]: 1 }, setupComplete: true, startedAt: Date.now() });
       return;
     }
-    onChange({ ...match, servingTeam: "A", server: 1, serveCounts: { [match.teamA[0]]: 1 }, setupComplete: true, startedAt: Date.now() });
+    const openingPlayer = match.teamA[match.rules.openingServer - 1] ?? match.teamA[0];
+    onChange({ ...match, servingTeam: "A", server: match.rules.openingServer, serveCounts: { [openingPlayer]: 1 }, setupComplete: true, startedAt: Date.now() });
   }
   return (
     <section className="match-setup">
       <div className="setup-heading"><div><span>Match Setup</span><small>Choose the first team and confirm player positions.</small></div></div>
       <div className="starting-team-control"><span>Starting Team</span><div><button className={match.servingTeam === "A" ? "active" : ""} onClick={() => startingTeam("A")}>Team A Starts</button><button className={match.servingTeam === "B" ? "active" : ""} onClick={() => startingTeam("B")}>Team B Starts</button></div></div>
-      <div className="service-order-grid">
-        <div><span>Team A Order</span><strong>1 · {playerName(match.teamA[0], session)}</strong><strong>2 · {playerName(match.teamA[1], session)}</strong><button onClick={() => swap("A")}>Swap Players</button></div>
-        <div><span>Team B Order</span><strong>1 · {playerName(match.teamB[0], session)}</strong><strong>2 · {playerName(match.teamB[1], session)}</strong><button onClick={() => swap("B")}>Swap Players</button></div>
-      </div>
+      {match.rules.teamSize === 2 && <div className="service-order-grid">
+        <div><span>Team A Order</span><strong>1 · {playerName(match.teamA[0], session)}</strong><strong>2 · {playerName(match.teamA[1]!, session)}</strong><button onClick={() => swap("A")}>Swap Players</button></div>
+        <div><span>Team B Order</span><strong>1 · {playerName(match.teamB[0], session)}</strong><strong>2 · {playerName(match.teamB[1]!, session)}</strong><button onClick={() => swap("B")}>Swap Players</button></div>
+      </div>}
       <CourtPreview match={match} session={session} />
       <button className="button primary start-match-button" onClick={startMatch}>Start Match</button>
     </section>
@@ -412,7 +449,7 @@ function MatchSetup({ match, session, onChange }: { match: Match; session: Sessi
 
 function CourtPreview({ match, session }: { match: Match; session: Session }) {
   return (
-    <div className="court-preview" aria-label="Player positions on court">
+    <div className={`court-preview ${match.rules.teamSize === 1 ? "singles-court" : ""}`} aria-label="Player positions on court">
       <div className="court-lines" />
       <div className="court-center-line" />
       <div className="court-kitchen kitchen-left" />
@@ -421,9 +458,9 @@ function CourtPreview({ match, session }: { match: Match; session: Session }) {
       <span className="court-team-label team-a-label">Team A</span>
       <span className="court-team-label team-b-label">Team B</span>
       <PlayerPosition className="player-a1" number={1} name={playerName(match.teamA[0], session)} />
-      <PlayerPosition className="player-a2" number={2} name={playerName(match.teamA[1], session)} />
+      {match.teamA[1] && <PlayerPosition className="player-a2" number={2} name={playerName(match.teamA[1]!, session)} />}
       <PlayerPosition className="player-b1" number={1} name={playerName(match.teamB[0], session)} />
-      <PlayerPosition className="player-b2" number={2} name={playerName(match.teamB[1], session)} />
+      {match.teamB[1] && <PlayerPosition className="player-b2" number={2} name={playerName(match.teamB[1]!, session)} />}
     </div>
   );
 }
@@ -446,9 +483,12 @@ function LiveMatchSetupEditor({ match, session, onChange, onDone }: { match: Mat
   const teamAHasServed = match.teamA.some((id) => (match.serveCounts[id] ?? 0) > 0);
   const teamBHasServed = match.teamB.some((id) => (match.serveCounts[id] ?? 0) > 0);
   function swap(team: "A" | "B") {
+    if (match.rules.teamSize === 1) return;
     if ((team === "A" && teamAHasServed) || (team === "B" && teamBHasServed)) return;
     const currentServingPlayer = (match.servingTeam === "A" ? match.teamA : match.teamB)[match.server - 1];
-    const swapped: Team = team === "A" ? [match.teamA[1], match.teamA[0]] : [match.teamB[1], match.teamB[0]];
+    const selected = team === "A" ? match.teamA : match.teamB;
+    if (selected.length !== 2) return;
+    const swapped: Team = [selected[1], selected[0]];
     const teamA = team === "A" ? swapped : match.teamA;
     const teamB = team === "B" ? swapped : match.teamB;
     const servingTeam = match.servingTeam === "A" ? teamA : teamB;
@@ -458,10 +498,10 @@ function LiveMatchSetupEditor({ match, session, onChange, onDone }: { match: Mat
   return (
     <section className="live-setup-editor">
       <div className="live-setup-heading"><div><span>Editing Match Setup</span><small>Each team locks after its first serve.</small></div><button onClick={onDone}>Done</button></div>
-      <div className="service-order-grid">
-        <div className={teamAHasServed ? "order-locked" : ""}><span>Team A Order</span><strong>1 · {playerName(match.teamA[0], session)}</strong><strong>2 · {playerName(match.teamA[1], session)}</strong><button disabled={teamAHasServed} onClick={() => swap("A")}>{teamAHasServed ? "Order Locked" : "Swap Players"}</button></div>
-        <div className={teamBHasServed ? "order-locked" : ""}><span>Team B Order</span><strong>1 · {playerName(match.teamB[0], session)}</strong><strong>2 · {playerName(match.teamB[1], session)}</strong><button disabled={teamBHasServed} onClick={() => swap("B")}>{teamBHasServed ? "Order Locked" : "Swap Players"}</button></div>
-      </div>
+      {match.rules.teamSize === 2 && <div className="service-order-grid">
+        <div className={teamAHasServed ? "order-locked" : ""}><span>Team A Order</span><strong>1 · {playerName(match.teamA[0], session)}</strong><strong>2 · {playerName(match.teamA[1]!, session)}</strong><button disabled={teamAHasServed} onClick={() => swap("A")}>{teamAHasServed ? "Order Locked" : "Swap Players"}</button></div>
+        <div className={teamBHasServed ? "order-locked" : ""}><span>Team B Order</span><strong>1 · {playerName(match.teamB[0], session)}</strong><strong>2 · {playerName(match.teamB[1]!, session)}</strong><button disabled={teamBHasServed} onClick={() => swap("B")}>{teamBHasServed ? "Order Locked" : "Swap Players"}</button></div>
+      </div>}
       <CourtPreview match={match} session={session} />
     </section>
   );
@@ -557,6 +597,7 @@ function matchDuration(match: Match) {
 }
 
 function normalizeSession(session: Session): Session {
+  const rules = session.rules ?? DEFAULT_RULES;
   const normalizeMatch = (match: Match): Match => ({
     ...match,
     pointScorers: match.pointScorers ?? [],
@@ -565,10 +606,12 @@ function normalizeSession(session: Session): Session {
     setupComplete: match.setupComplete ?? Boolean(match.history?.length || match.scoreA || match.scoreB || match.winner),
     startedAt: match.startedAt ?? null,
     endedAt: match.endedAt ?? null,
+    rules: match.rules ?? rules,
     history: (match.history ?? []).map((item) => ({ ...item, pointScorers: item.pointScorers ?? [], serveCounts: item.serveCounts ?? {}, faultCounts: item.faultCounts ?? {}, endedAt: item.endedAt ?? null })),
   });
   return {
     ...session,
+    rules,
     completedRounds: (session.completedRounds ?? []).map((round) => ({ ...round, matches: round.matches.map(normalizeMatch) })),
     players: session.players.map((player) => ({ ...player, points: player.points ?? 0, timePlayedSeconds: player.timePlayedSeconds ?? 0 })),
     current: { ...session.current, matches: session.current.matches.map(normalizeMatch) },

@@ -9,7 +9,20 @@ export type Player = {
   timePlayedSeconds: number;
 };
 
-export type Team = [string, string];
+export type GameFormat = "rest-dinkers-doubles" | "standard-doubles" | "standard-singles";
+
+export type GameRules = {
+  id: GameFormat;
+  name: string;
+  description: string;
+  teamSize: 1 | 2;
+  winningScore: number;
+  winBy: 1 | 2;
+  serversPerSide: 1 | 2;
+  openingServer: 1 | 2;
+};
+
+export type Team = [string] | [string, string];
 
 export type Match = {
   id: string;
@@ -28,6 +41,7 @@ export type Match = {
   setupComplete: boolean;
   startedAt: number | null;
   endedAt: number | null;
+  rules: GameRules;
 };
 
 export type ScoreSnapshot = Pick<Match, "scoreA" | "scoreB" | "servingTeam" | "server" | "winner" | "pointScorers" | "serveCounts" | "faultCounts" | "endedAt">;
@@ -48,6 +62,7 @@ export type Session = {
   completedRounds: Round[];
   partnerCounts: Record<string, number>;
   opponentCounts: Record<string, number>;
+  rules: GameRules;
 };
 
 export const pairKey = (a: string, b: string) => [a, b].sort().join("|");

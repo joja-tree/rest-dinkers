@@ -1,6 +1,8 @@
 import type { Match, Player, Round, Session, Team } from "./domain";
 import { pairKey } from "./domain";
 
+type DoublesTeam = [string, string];
+
 const WEIGHTS = {
   games: 1000,
   consecutiveGame: 190,
@@ -42,12 +44,13 @@ function chooseParticipants(players: Player[], count: number, roundNumber: numbe
   return best?.players ?? players.slice(0, count);
 }
 
-function partitionIntoTeams(ids: string[], session: Pick<Session, "partnerCounts" | "opponentCounts">): Team[] {
+function partitionIntoTeams(ids: string[], session: Pick<Session, "partnerCounts" | "opponentCounts" | "rules">): Team[] {
+  if (session.rules.teamSize === 1) return ids.map((id) => [id]);
   const remaining = [...ids];
   const teams: Team[] = [];
   while (remaining.length >= 4) {
     const group = remaining.splice(0, 4);
-    const candidates: [Team, Team][] = [
+    const candidates: [DoublesTeam, DoublesTeam][] = [
       [[group[0], group[1]], [group[2], group[3]]],
       [[group[0], group[2]], [group[1], group[3]]],
       [[group[0], group[3]], [group[1], group[2]]],
@@ -58,16 +61,17 @@ function partitionIntoTeams(ids: string[], session: Pick<Session, "partnerCounts
   return teams;
 }
 
-function teamPenalty([a, b]: [Team, Team], session: Pick<Session, "partnerCounts" | "opponentCounts">): number {
+function teamPenalty([a, b]: [DoublesTeam, DoublesTeam], session: Pick<Session, "partnerCounts" | "opponentCounts">): number {
   const partner = (session.partnerCounts[pairKey(a[0], a[1])] ?? 0) + (session.partnerCounts[pairKey(b[0], b[1])] ?? 0);
   const opponentPairs = a.flatMap((left) => b.map((right) => pairKey(left, right)));
   const opponent = opponentPairs.reduce((sum, key) => sum + (session.opponentCounts[key] ?? 0), 0);
   return partner * WEIGHTS.partnerRepeat + opponent * WEIGHTS.opponentRepeat;
 }
 
-export function generateRound(session: Pick<Session, "id" | "courts" | "players" | "partnerCounts" | "opponentCounts">, roundNumber: number): Round {
-  const matchCount = Math.min(session.courts, Math.floor(session.players.length / 4));
-  const participants = chooseParticipants(session.players, matchCount * 4, roundNumber);
+export function generateRound(session: Pick<Session, "id" | "courts" | "players" | "partnerCounts" | "opponentCounts" | "rules">, roundNumber: number): Round {
+  const playersPerMatch = session.rules.teamSize * 2;
+  const matchCount = Math.min(session.courts, Math.floor(session.players.length / playersPerMatch));
+  const participants = chooseParticipants(session.players, matchCount * playersPerMatch, roundNumber);
   const teams = partitionIntoTeams(participants.map((player) => player.id), session);
   const matches: Match[] = [];
   for (let court = 0; court < matchCount; court += 1) {
@@ -79,14 +83,15 @@ export function generateRound(session: Pick<Session, "id" | "courts" | "players"
       scoreA: 0,
       scoreB: 0,
       servingTeam: "A",
-      server: 1,
+      server: session.rules.openingServer,
       history: [],
       pointScorers: [],
-      serveCounts: { [teams[court * 2][0]]: 1 },
+      serveCounts: { [teams[court * 2][session.rules.openingServer - 1] ?? teams[court * 2][0]]: 1 },
       faultCounts: {},
       setupComplete: false,
       startedAt: null,
       endedAt: null,
+      rules: session.rules,
     });
   }
   const selected = new Set(participants.map((player) => player.id));
@@ -98,8 +103,8 @@ export function applyCompletedRound(session: Session): Session {
   const partnerCounts = { ...session.partnerCounts };
   const opponentCounts = { ...session.opponentCounts };
   for (const match of session.current.matches) {
-    partnerCounts[pairKey(...match.teamA)] = (partnerCounts[pairKey(...match.teamA)] ?? 0) + 1;
-    partnerCounts[pairKey(...match.teamB)] = (partnerCounts[pairKey(...match.teamB)] ?? 0) + 1;
+    if (match.teamA.length === 2) partnerCounts[pairKey(match.teamA[0], match.teamA[1])] = (partnerCounts[pairKey(match.teamA[0], match.teamA[1])] ?? 0) + 1;
+    if (match.teamB.length === 2) partnerCounts[pairKey(match.teamB[0], match.teamB[1])] = (partnerCounts[pairKey(match.teamB[0], match.teamB[1])] ?? 0) + 1;
     for (const a of match.teamA) for (const b of match.teamB) opponentCounts[pairKey(a, b)] = (opponentCounts[pairKey(a, b)] ?? 0) + 1;
   }
   const scored = session.current.matches.flatMap((match) => match.pointScorers).reduce<Record<string, number>>((totals, id) => {

@@ -1,7 +1,8 @@
-import type { Player, Session } from "./domain";
+import type { GameFormat, Player, Session } from "./domain";
 import { generateRound } from "./fair-play";
+import { rulesFor } from "./game-rules";
 
-export function createSession(name: string, names: string[], courts: number): Session {
+export function createSession(name: string, names: string[], courts: number, format: GameFormat = "rest-dinkers-doubles"): Session {
   const id = crypto.randomUUID();
   const players: Player[] = names.map((playerName, index) => ({
     id: `${id}-p${index + 1}`,
@@ -13,7 +14,8 @@ export function createSession(name: string, names: string[], courts: number): Se
     points: 0,
     timePlayedSeconds: 0,
   }));
-  const base = { id, name: name.trim() || "Open Play", courts, players, partnerCounts: {}, opponentCounts: {} };
+  const rules = rulesFor(format);
+  const base = { id, name: name.trim() || "Open Play", courts, players, partnerCounts: {}, opponentCounts: {}, rules };
   const current = generateRound(base, 1);
   const projectedPlayers = players.map((player) => current.resting.includes(player.id)
     ? { ...player, rests: 1, consecutiveRests: 1 }

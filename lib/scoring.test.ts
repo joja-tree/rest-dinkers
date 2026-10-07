@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Match } from "./domain";
 import { out, point, undo } from "./scoring";
+import { RULE_PRESETS } from "./game-rules";
 
 const match: Match = {
   id: "match",
@@ -18,6 +19,7 @@ const match: Match = {
   setupComplete: true,
   startedAt: 1000,
   endedAt: null,
+  rules: RULE_PRESETS["rest-dinkers-doubles"],
 };
 
 describe("double-serve scoring", () => {
@@ -56,5 +58,28 @@ describe("double-serve scoring", () => {
     expect(restored.scoreA).toBe(10);
     expect(restored.winner).toBeUndefined();
     expect(restored.endedAt).toBeNull();
+  });
+});
+
+describe("standard formats", () => {
+  it("requires standard doubles to win by two", () => {
+    const standard = { ...match, rules: RULE_PRESETS["standard-doubles"], scoreA: 10, scoreB: 10 };
+    expect(point(standard).winner).toBeUndefined();
+    const atAdvantage = { ...standard, scoreA: 11 };
+    expect(point(atAdvantage).winner).toBe("A");
+  });
+
+  it("switches sides after one singles fault", () => {
+    const singles: Match = { ...match, teamA: ["alex"], teamB: ["cal"], rules: RULE_PRESETS["standard-singles"] };
+    const changed = out(singles);
+    expect(changed.servingTeam).toBe("B");
+    expect(changed.server).toBe(1);
+  });
+
+  it("uses only the second opening server in standard doubles", () => {
+    const standard = { ...match, server: 2 as const, rules: RULE_PRESETS["standard-doubles"], serveCounts: { bea: 1 } };
+    const changed = out(standard);
+    expect(changed.servingTeam).toBe("B");
+    expect(changed.server).toBe(1);
   });
 });
