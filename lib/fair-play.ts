@@ -1,0 +1,119 @@
+import type { Match, Player, Round, Session, Team } from "./domain";
+import { pairKey } from "./domain";
+
+const WEIGHTS = {
+  games: 1000,
+  consecutiveGame: 190,
+  consecutiveRest: 260,
+  rests: -25,
+  partnerRepeat: 45,
+  opponentRepeat: 12,
+} as const;
+
+function combinations<T>(items: T[], size: number): T[][] {
+  if (size === 0) return [[]];
+  if (items.length < size) return [];
+  const result: T[][] = [];
+  for (let index = 0; index <= items.length - size; index += 1) {
+    for (const tail of combinations(items.slice(index + 1), size - 1)) result.push([items[index], ...tail]);
+  }
+  return result;
+}
+
+function seededTie(ids: string[], round: number): number {
+  const value = `${round}:${[...ids].sort().join(":")}`;
+  let hash = 0;
+  for (const char of value) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return hash / 0xffffffff;
+}
+
+function chooseParticipants(players: Player[], count: number, roundNumber: number): Player[] {
+  let best: { players: Player[]; score: number } | undefined;
+  for (const group of combinations(players, count)) {
+    const score = group.reduce((total, player) => total
+      + player.games * WEIGHTS.games
+      + player.consecutiveGames * WEIGHTS.consecutiveGame
+      + player.rests * WEIGHTS.rests, 0)
+      + players.filter((player) => !group.includes(player)).reduce((total, player) => total
+        + player.consecutiveRests * WEIGHTS.consecutiveRest, 0)
+      + seededTie(group.map((player) => player.id), roundNumber);
+    if (!best || score < best.score) best = { players: group, score };
+  }
+  return best?.players ?? players.slice(0, count);
+}
+
+function partitionIntoTeams(ids: string[], session: Pick<Session, "partnerCounts" | "opponentCounts">): Team[] {
+  const remaining = [...ids];
+  const teams: Team[] = [];
+  while (remaining.length >= 4) {
+    const group = remaining.splice(0, 4);
+    const candidates: [Team, Team][] = [
+      [[group[0], group[1]], [group[2], group[3]]],
+      [[group[0], group[2]], [group[1], group[3]]],
+      [[group[0], group[3]], [group[1], group[2]]],
+    ];
+    candidates.sort((left, right) => teamPenalty(left, session) - teamPenalty(right, session));
+    teams.push(...candidates[0]);
+  }
+  return teams;
+}
+
+function teamPenalty([a, b]: [Team, Team], session: Pick<Session, "partnerCounts" | "opponentCounts">): number {
+  const partner = (session.partnerCounts[pairKey(a[0], a[1])] ?? 0) + (session.partnerCounts[pairKey(b[0], b[1])] ?? 0);
+  const opponentPairs = a.flatMap((left) => b.map((right) => pairKey(left, right)));
+  const opponent = opponentPairs.reduce((sum, key) => sum + (session.opponentCounts[key] ?? 0), 0);
+  return partner * WEIGHTS.partnerRepeat + opponent * WEIGHTS.opponentRepeat;
+}
+
+export function generateRound(session: Pick<Session, "id" | "courts" | "players" | "partnerCounts" | "opponentCounts">, roundNumber: number): Round {
+  const matchCount = Math.min(session.courts, Math.floor(session.players.length / 4));
+  const participants = chooseParticipants(session.players, matchCount * 4, roundNumber);
+  const teams = partitionIntoTeams(participants.map((player) => player.id), session);
+  const matches: Match[] = [];
+  for (let court = 0; court < matchCount; court += 1) {
+    matches.push({
+      id: `${session.id}-r${roundNumber}-c${court + 1}`,
+      court: court + 1,
+      teamA: teams[court * 2],
+      teamB: teams[court * 2 + 1],
+      scoreA: 0,
+      scoreB: 0,
+      servingTeam: "A",
+      server: 1,
+      history: [],
+      pointScorers: [],
+      serveCounts: { [teams[court * 2][0]]: 1 },
+      faultCounts: {},
+      setupComplete: false,
+      startedAt: null,
+      endedAt: null,
+    });
+  }
+  const selected = new Set(participants.map((player) => player.id));
+  return { number: roundNumber, matches, resting: session.players.filter((player) => !selected.has(player.id)).map((player) => player.id) };
+}
+
+export function applyCompletedRound(session: Session): Session {
+  const playing = new Set(session.current.matches.flatMap((match) => [...match.teamA, ...match.teamB]));
+  const partnerCounts = { ...session.partnerCounts };
+  const opponentCounts = { ...session.opponentCounts };
+  for (const match of session.current.matches) {
+    partnerCounts[pairKey(...match.teamA)] = (partnerCounts[pairKey(...match.teamA)] ?? 0) + 1;
+    partnerCounts[pairKey(...match.teamB)] = (partnerCounts[pairKey(...match.teamB)] ?? 0) + 1;
+    for (const a of match.teamA) for (const b of match.teamB) opponentCounts[pairKey(a, b)] = (opponentCounts[pairKey(a, b)] ?? 0) + 1;
+  }
+  const scored = session.current.matches.flatMap((match) => match.pointScorers).reduce<Record<string, number>>((totals, id) => {
+    totals[id] = (totals[id] ?? 0) + 1;
+    return totals;
+  }, {});
+  const playedSeconds = session.current.matches.reduce<Record<string, number>>((totals, match) => {
+    const elapsed = match.startedAt && match.endedAt ? Math.max(0, Math.floor((match.endedAt - match.startedAt) / 1000)) : 0;
+    for (const id of [...match.teamA, ...match.teamB]) totals[id] = (totals[id] ?? 0) + elapsed;
+    return totals;
+  }, {});
+  const players = session.players.map((player) => playing.has(player.id)
+    ? { ...player, games: player.games + 1, consecutiveGames: player.consecutiveGames + 1, consecutiveRests: 0, points: player.points + (scored[player.id] ?? 0), timePlayedSeconds: player.timePlayedSeconds + (playedSeconds[player.id] ?? 0) }
+    : { ...player, rests: player.rests + 1, consecutiveGames: 0, consecutiveRests: player.consecutiveRests + 1 });
+  const promoted = { ...session, players, partnerCounts, opponentCounts, completedRounds: [...session.completedRounds, session.current], current: session.next };
+  return { ...promoted, next: generateRound(promoted, session.next.number + 1) };
+}
