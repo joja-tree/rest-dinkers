@@ -31,11 +31,15 @@ button { cursor: pointer; }
 .auth-wrap { display: grid; grid-template-columns: 1.1fr .8fr; gap: 42px; align-items: center; width: min(980px, calc(100% - 32px)); min-height: calc(100vh - 122px); margin: 0 auto; padding: 45px 0; }
 .auth-intro h1 { max-width: 600px; }
 .auth-card { max-width: 430px; width: 100%; justify-self: end; }
+.auth-backdrop { z-index: 80; }
+.auth-backdrop .auth-card { position: relative; justify-self: auto; padding: 30px; }
+.auth-close { position: absolute; top: 16px; right: 16px; background: var(--paper); color: var(--muted); }
 .auth-card h2 { margin: 0 0 6px; font-size: 29px; letter-spacing: -.04em; }
 .google-button { width: 100%; border: 1px solid var(--line); background: white; color: var(--ink); }
 .auth-divider { display: flex; align-items: center; gap: 12px; margin: 17px 0; color: var(--muted); font-size: 11px; }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .auth-switch { width: 100%; margin-top: 15px; border: 0; background: transparent; color: var(--forest); font-size: 12px; font-weight: 800; }
+.sign-in-button { white-space: nowrap; }
 .content { width: min(1080px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 70px; }
 .hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 34px; align-items: center; min-height: 65vh; }
 .eyebrow { color: var(--lime-dark); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
@@ -212,6 +216,9 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
   .session-header { align-items: flex-start; flex-direction: column; }
   .status-pill { display: none; }
   .header-actions { margin-left: auto; }
+  .topbar { flex-wrap: wrap; }
+  .topbar .header-actions { gap: 7px; }
+  .topbar .header-actions > .button { min-height: 40px; padding-inline: 12px; font-size: 11px; }
   .account-pill { min-height: 43px; padding-left: 10px; }
   .account-pill strong { max-width: 86px; }
   .brand img { width: 165px; height: 74px; }
