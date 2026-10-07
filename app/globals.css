@@ -40,6 +40,7 @@ button { cursor: pointer; }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .auth-switch { width: 100%; margin-top: 15px; border: 0; background: transparent; color: var(--forest); font-size: 12px; font-weight: 800; }
 .sign-in-button { white-space: nowrap; }
+.header-history-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .content { width: min(1080px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 70px; }
 .hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 34px; align-items: center; min-height: 65vh; }
 .eyebrow { color: var(--lime-dark); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }

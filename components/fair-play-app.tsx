@@ -26,6 +26,7 @@ export function FairPlayApp() {
   const [saveState, setSaveState] = useState<"saved" | "saving" | "offline">(firebaseConfigured ? "saving" : "offline");
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
   const [selectedHistory, setSelectedHistory] = useState<SessionHistoryItem | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     if (!firebaseConfigured) return;
@@ -123,7 +124,7 @@ export function FairPlayApp() {
       </>
     );
   }
-  return <><SessionView session={session} onScore={openMatch} onAdvance={advanceRound} onEnd={endSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} />{authModal}</>;
+  return <><SessionView session={session} onScore={openMatch} onAdvance={advanceRound} onEnd={endSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} />{authModal}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}</>;
 }
 
 function AuthScreen({ onClose }: { onClose: () => void }) {
@@ -288,6 +289,18 @@ function SavedSessions({ items, onView }: { items: SessionHistoryItem[]; onView:
   );
 }
 
+function HistoryList({ items, onView }: { items: SessionHistoryItem[]; onView: (item: SessionHistoryItem) => void }) {
+  if (!items.length) return <div className="empty-history"><History size={23} /><div><strong>No Saved Sessions Yet</strong><p>Finish a signed-in session and it will appear here.</p></div></div>;
+  return <div className="history-list">{items.map((item) => {
+    const playedMatches = item.session.completedRounds.flatMap((round) => round.matches).length;
+    return <button className="history-item" key={item.session.id} onClick={() => onView(item)}><div><strong>{item.session.name}</strong><small>{item.session.rules.name}</small></div><span><Users size={14} /> {item.session.players.length}</span><span><Clock3 size={14} /> {item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved"}</span><em>{playedMatches} Match{playedMatches === 1 ? "" : "es"}</em></button>;
+  })}</div>;
+}
+
+function SessionHistoryLibrary({ items, onView, onClose }: { items: SessionHistoryItem[]; onView: (item: SessionHistoryItem) => void; onClose: () => void }) {
+  return <div className="modal-backdrop rules-backdrop" role="presentation" onMouseDown={onClose}><section className="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-library-title" onMouseDown={(event) => event.stopPropagation()}><header className="rules-header"><div><span className="eyebrow">Your Games</span><h2 id="history-library-title">Session History</h2><p>Completed sessions are saved to your account.</p></div><button className="modal-close" onClick={onClose} aria-label="Close Session History">×</button></header><div className="history-details"><HistoryList items={items} onView={onView} /></div></section></div>;
+}
+
 function SessionHistoryDetails({ item, onClose }: { item: SessionHistoryItem; onClose: () => void }) {
   const session = item.session;
   const rounds = session.completedRounds;
@@ -334,11 +347,11 @@ function RulesGuide({ onClose }: { onClose: () => void }) {
   );
 }
 
-function SessionView({ session, onScore, onAdvance, onEnd, user, saveState, onSignIn }: { session: Session; onScore: (id: string) => void; onAdvance: () => void; onEnd: () => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void }) {
+function SessionView({ session, onScore, onAdvance, onEnd, user, saveState, onSignIn, onHistory }: { session: Session; onScore: (id: string) => void; onAdvance: () => void; onEnd: () => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void; onHistory: () => void }) {
   const complete = session.current.matches.every((match) => Boolean(match.winner));
   return (
     <main className="shell">
-      <Header user={user} saveState={saveState} onSignIn={onSignIn} trailing={<button className="button secondary" onClick={onEnd}>End Session</button>} />
+      <Header user={user} saveState={saveState} onSignIn={onSignIn} trailing={<><button className="button secondary header-history-button" onClick={onHistory}><History size={15} /> History</button><button className="button secondary" onClick={onEnd}>End Session</button></>} />
       <div className="content">
         <div className="session-header">
           <div><span className="eyebrow">Live Session</span><h1>{session.name}</h1><p className="subtle">{session.rules.name} · {session.players.length} players · {session.courts} court{session.courts > 1 ? "s" : ""}</p></div>
