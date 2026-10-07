@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Check, ExternalLink, LogOut, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { BookOpen, Check, Clock3, ExternalLink, History, LogOut, Plus, RotateCcw, Trash2, Users } from "lucide-react";
 import type { User } from "firebase/auth";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
 import type { GameFormat, Match, Session, Team } from "@/lib/domain";
@@ -10,7 +10,7 @@ import { out, point, undo } from "@/lib/scoring";
 import { sessionSchema } from "@/lib/schemas";
 import { createSession } from "@/lib/session";
 import { firebaseAuth, firebaseConfigured } from "@/firebase/client";
-import { archiveSession, loadActiveSession, saveActiveSession } from "@/firebase/sessions";
+import { archiveSession, loadActiveSession, loadSessionHistory, saveActiveSession, type SessionHistoryItem } from "@/firebase/sessions";
 import { DEFAULT_RULES, RULE_PRESETS } from "@/lib/game-rules";
 
 const STORAGE_KEY = "rest-dinkers-session-v1";
@@ -24,6 +24,8 @@ export function FairPlayApp() {
   const [authReady, setAuthReady] = useState(!firebaseConfigured);
   const [showAuth, setShowAuth] = useState(false);
   const [saveState, setSaveState] = useState<"saved" | "saving" | "offline">(firebaseConfigured ? "saving" : "offline");
+  const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
+  const [selectedHistory, setSelectedHistory] = useState<SessionHistoryItem | null>(null);
 
   useEffect(() => {
     if (!firebaseConfigured) return;
@@ -33,10 +35,11 @@ export function FairPlayApp() {
       setActiveMatchId(null);
       if (nextUser) {
         try {
-          const cloudSession = await loadActiveSession(nextUser.uid);
+          const [cloudSession, history] = await Promise.all([loadActiveSession(nextUser.uid), loadSessionHistory(nextUser.uid)]);
           if (cloudSession) setSession(normalizeSession(cloudSession));
+          setSessionHistory(history.map((item) => ({ ...item, session: normalizeSession(item.session) })));
         } catch { setSaveState("offline"); }
-      }
+      } else setSessionHistory([]);
       setAuthReady(true);
     });
   }, []);
@@ -88,13 +91,19 @@ export function FairPlayApp() {
 
   async function endSession() {
     if (!session) return;
-    if (user) await archiveSession(user.uid, session).catch(() => setSaveState("offline"));
+    if (user) {
+      try {
+        await archiveSession(user.uid, session);
+        const history = await loadSessionHistory(user.uid);
+        setSessionHistory(history.map((item) => ({ ...item, session: normalizeSession(item.session) })));
+      } catch { setSaveState("offline"); }
+    }
     setSession(null);
   }
 
   if (!ready || !authReady) return <main className="shell loading">Getting the court ready…</main>;
   const authModal = showAuth ? <AuthScreen onClose={() => setShowAuth(false)} /> : null;
-  if (!session) return <><Setup onCreate={setSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} />{authModal}</>;
+  if (!session) return <><Setup onCreate={setSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} history={sessionHistory} onViewHistory={setSelectedHistory} />{authModal}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}</>;
   if (activeMatch) {
     return (
       <>
@@ -177,7 +186,7 @@ function Header({ trailing, user, saveState, onSignIn }: { trailing?: React.Reac
   );
 }
 
-function Setup({ onCreate, user, saveState, onSignIn }: { onCreate: (session: Session) => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void }) {
+function Setup({ onCreate, user, saveState, onSignIn, history, onViewHistory }: { onCreate: (session: Session) => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void; history: SessionHistoryItem[]; onViewHistory: (item: SessionHistoryItem) => void }) {
   const [name, setName] = useState("");
   const [courts, setCourts] = useState(1);
   const [players, setPlayers] = useState(["Alex", "Bea", "Cal", "Dani"]);
@@ -261,8 +270,37 @@ function Setup({ onCreate, user, saveState, onSignIn }: { onCreate: (session: Se
           <button className="button primary" onClick={submit}>Generate Fair Rounds</button>
         </section>
       </div>
+      {user && <SavedSessions items={history} onView={onViewHistory} />}
       {showRules && <RulesGuide onClose={() => setShowRules(false)} />}
     </main>
+  );
+}
+
+function SavedSessions({ items, onView }: { items: SessionHistoryItem[]; onView: (item: SessionHistoryItem) => void }) {
+  return (
+    <section className="saved-sessions">
+      <div className="saved-sessions-heading"><div><span className="eyebrow">Your Games</span><h2>Session History</h2></div><History size={22} /></div>
+      {items.length ? <div className="history-list">{items.map((item) => {
+        const playedMatches = item.session.completedRounds.flatMap((round) => round.matches).length;
+        return <button className="history-item" key={item.session.id} onClick={() => onView(item)}><div><strong>{item.session.name}</strong><small>{item.session.rules.name}</small></div><span><Users size={14} /> {item.session.players.length}</span><span><Clock3 size={14} /> {item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved"}</span><em>{playedMatches} Match{playedMatches === 1 ? "" : "es"}</em></button>;
+      })}</div> : <div className="empty-history"><History size={23} /><div><strong>No Saved Sessions Yet</strong><p>Finish a signed-in session and it will appear here.</p></div></div>}
+    </section>
+  );
+}
+
+function SessionHistoryDetails({ item, onClose }: { item: SessionHistoryItem; onClose: () => void }) {
+  const session = item.session;
+  const rounds = session.completedRounds;
+  return (
+    <div className="modal-backdrop rules-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="rules-header"><div><span className="eyebrow">Saved Session</span><h2 id="history-title">{session.name}</h2><p>{session.rules.name} · {session.players.length} Players · {rounds.length} Round{rounds.length === 1 ? "" : "s"}</p></div><button className="modal-close" onClick={onClose} aria-label="Close Session History">×</button></header>
+        <div className="history-details">
+          <div className="history-player-summary">{session.players.map((player) => <div key={player.id}><strong>{player.name}</strong><span>{player.games} Games</span><span>{player.points} Points</span></div>)}</div>
+          {rounds.length ? rounds.map((round) => <article className="history-round" key={round.number}><h3>Round {round.number}</h3>{round.matches.map((match) => <div className="history-match" key={match.id}><span>Court {match.court}</span><strong>{names(match.teamA, session)} <b>{match.scoreA}</b></strong><strong>{names(match.teamB, session)} <b>{match.scoreB}</b></strong><em>{matchDuration(match)}</em></div>)}</article>) : <div className="empty-history"><History size={23} /><div><strong>No Completed Rounds</strong><p>This session ended before a round was completed.</p></div></div>}
+        </div>
+      </section>
+    </div>
   );
 }
 

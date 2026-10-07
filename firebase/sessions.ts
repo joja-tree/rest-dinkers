@@ -1,9 +1,20 @@
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
 import type { Session } from "@/lib/domain";
 import { firebaseDb } from "./client";
 
 const userRef = (uid: string) => doc(firebaseDb(), "users", uid);
 const sessionRef = (uid: string, id: string) => doc(firebaseDb(), "users", uid, "sessions", id);
+
+export type SessionHistoryItem = { session: Session; savedAt: number };
+
+export async function loadSessionHistory(uid: string): Promise<SessionHistoryItem[]> {
+  const saved = await getDocs(collection(firebaseDb(), "users", uid, "sessions"));
+  return saved.docs
+    .map((item) => item.data())
+    .filter((item) => item.status === "completed" && item.session)
+    .map((item) => ({ session: item.session as Session, savedAt: item.updatedAt instanceof Timestamp ? item.updatedAt.toMillis() : 0 }))
+    .sort((a, b) => b.savedAt - a.savedAt);
+}
 
 export async function loadActiveSession(uid: string): Promise<Session | null> {
   const user = await getDoc(userRef(uid));
