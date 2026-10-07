@@ -180,7 +180,7 @@ function Header({ trailing, user, saveState, onSignIn }: { trailing?: React.Reac
 function Setup({ onCreate, user, saveState, onSignIn }: { onCreate: (session: Session) => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void }) {
   const [name, setName] = useState("");
   const [courts, setCourts] = useState(1);
-  const [players, setPlayers] = useState(["Alex", "Bea", "Cal", "Dani", "Eli", "Fran"]);
+  const [players, setPlayers] = useState(["Alex", "Bea", "Cal", "Dani"]);
   const [error, setError] = useState("");
   const [format, setFormat] = useState<GameFormat>("rest-dinkers-doubles");
 
