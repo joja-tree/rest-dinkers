@@ -45,6 +45,7 @@ button { cursor: pointer; }
 .eyebrow { color: var(--lime-dark); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065em; margin: 12px 0 20px; }
 .lede { color: var(--muted); font-size: 18px; line-height: 1.55; max-width: 570px; }
+.rules-button { display: inline-flex; align-items: center; justify-content: center; gap: 9px; margin-top: 9px; border: 1px solid var(--line); background: white; color: var(--forest); box-shadow: 0 8px 25px rgba(21,63,48,.08); }
 .card { background: white; border: 1px solid var(--line); border-radius: 24px; box-shadow: 0 16px 50px rgba(21,63,48,.08); padding: 24px; }
 .setup-card h2, .section-title { margin: 0 0 6px; font-size: 24px; letter-spacing: -.035em; }
 .subtle { margin: 0 0 22px; color: var(--muted); font-size: 14px; line-height: 1.45; }
@@ -116,6 +117,24 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .stats-hint { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
 .player-stat-row { width: 100%; color: var(--ink); text-align: left; cursor: pointer; }
 .modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 18px; background: rgba(13,48,36,.68); backdrop-filter: blur(5px); }
+.rules-backdrop { z-index: 90; }
+.rules-modal { width: min(900px, 100%); max-height: calc(100vh - 36px); overflow: hidden; border-radius: 28px; background: white; box-shadow: 0 28px 90px rgba(13,48,36,.35); }
+.rules-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 25px 28px; background: var(--forest); color: var(--cream); }
+.rules-header .eyebrow { color: var(--lime); }
+.rules-header h2 { margin: 5px 0 4px; font-size: 38px; letter-spacing: -.045em; }
+.rules-header p { margin: 0; color: rgba(242,239,215,.7); font-size: 13px; }
+.rules-content { max-height: calc(100vh - 176px); overflow-y: auto; padding: 22px 28px 28px; }
+.line-call-rule { padding: 20px; border-radius: 18px; background: var(--lime); color: var(--forest-2); }
+.line-call-rule > span { font-size: 9px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.line-call-rule h3 { margin: 5px 0 7px; font-size: 25px; letter-spacing: -.035em; }
+.line-call-rule p, .line-calling-guide p { margin: 0; font-size: 13px; line-height: 1.55; }
+.rules-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; margin-top: 12px; }
+.rules-grid article, .line-calling-guide { padding: 17px 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); }
+.rules-grid h3, .line-calling-guide h3 { margin: 0 0 8px; font-size: 15px; letter-spacing: -.02em; }
+.rules-grid ul { display: grid; gap: 6px; margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.line-calling-guide { margin-top: 12px; }
+.line-calling-guide p { color: var(--muted); }
+.official-rules-link { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; margin-top: 12px; border-radius: 14px; background: var(--forest); color: var(--cream); font-size: 12px; font-weight: 900; text-decoration: none; }
 .player-modal { width: min(620px, 100%); max-height: calc(100vh - 36px); overflow-y: auto; padding: 0 22px 22px; border-radius: 26px; background: white; box-shadow: 0 24px 80px rgba(13,48,36,.3); }
 .player-modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin: 0 -22px 18px; padding: 23px 24px 21px; border-radius: 25px 25px 18px 18px; background: var(--forest); }
 .player-modal-header .eyebrow { color: var(--lime); }
@@ -223,6 +242,14 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
   .previous-rounds { order: 3; }
   .stats { order: 4; margin-top: 0; }
   .hero { padding-top: 12px; }
+  .rules-button { width: 100%; }
+  .rules-modal { border-radius: 22px; }
+  .rules-header { padding: 21px 19px; }
+  .rules-header h2 { font-size: 31px; }
+  .rules-content { max-height: calc(100vh - 150px); padding: 15px; }
+  .rules-grid { grid-template-columns: 1fr; }
+  .line-call-rule { padding: 17px; }
+  .line-call-rule h3 { font-size: 21px; }
   .session-header { align-items: flex-start; flex-direction: column; }
   .status-pill { display: none; }
   .header-actions { margin-left: auto; }

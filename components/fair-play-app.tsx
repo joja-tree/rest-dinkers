@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, LogOut, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { BookOpen, Check, ExternalLink, LogOut, Plus, RotateCcw, Trash2 } from "lucide-react";
 import type { User } from "firebase/auth";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
 import type { GameFormat, Match, Session, Team } from "@/lib/domain";
@@ -183,6 +183,7 @@ function Setup({ onCreate, user, saveState, onSignIn }: { onCreate: (session: Se
   const [players, setPlayers] = useState(["Alex", "Bea", "Cal", "Dani"]);
   const [error, setError] = useState("");
   const [format, setFormat] = useState<GameFormat>("rest-dinkers-doubles");
+  const [showRules, setShowRules] = useState(false);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(FORMAT_KEY) as GameFormat | null;
@@ -217,6 +218,7 @@ function Setup({ onCreate, user, saveState, onSignIn }: { onCreate: (session: Se
           <span className="eyebrow">More play. Better rotation.</span>
           <h1>Everyone gets a fair shot.</h1>
           <p className="lede">Build balanced pickleball rounds, keep partners moving, and score every game from the sideline.</p>
+          <button className="button rules-button" onClick={() => setShowRules(true)}><BookOpen size={18} /> View Pickleball Rules</button>
         </section>
         <section className="card setup-card">
           <h2>Start a Session</h2>
@@ -259,7 +261,38 @@ function Setup({ onCreate, user, saveState, onSignIn }: { onCreate: (session: Se
           <button className="button primary" onClick={submit}>Generate Fair Rounds</button>
         </section>
       </div>
+      {showRules && <RulesGuide onClose={() => setShowRules(false)} />}
     </main>
+  );
+}
+
+function RulesGuide({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="modal-backdrop rules-backdrop" role="presentation" onMouseDown={onClose}>
+      <section className="rules-modal" role="dialog" aria-modal="true" aria-labelledby="rules-title" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="rules-header">
+          <div><span className="eyebrow">Quick Reference</span><h2 id="rules-title">Pickleball Rules</h2><p>Standard USA Pickleball rules for singles and doubles.</p></div>
+          <button className="modal-close" onClick={onClose} aria-label="Close Pickleball Rules">×</button>
+        </header>
+        <div className="rules-content">
+          <article className="line-call-rule">
+            <span>Line Calls</span>
+            <h3>If The Ball Touches The Line, It Is In.</h3>
+            <p>The exception is a serve touching the non-volley zone line. That serve is short and is a fault. Call a ball out only when you clearly see space between the ball and the line. If there is doubt, the ball is in.</p>
+          </article>
+          <div className="rules-grid">
+            <article><h3>Game Basics</h3><ul><li>Play singles with one player per side or doubles with two.</li><li>Standard games are played to 11 and must be won by 2.</li><li>Under traditional scoring, only the serving side scores.</li></ul></article>
+            <article><h3>The Serve</h3><ul><li>Serve diagonally into the opposite service court.</li><li>Use an underhand upward stroke with contact below the waist, or use a legal drop serve.</li><li>Keep at least one foot behind the baseline and inside the sideline and centerline extensions at contact.</li><li>Each server gets one attempt.</li></ul></article>
+            <article><h3>Service Sequence</h3><ul><li>In doubles, both partners serve before a side out, except at the start of a game when only one partner serves.</li><li>The first serve after a side out begins from the right court.</li><li>In singles, serve from the right when your score is even and from the left when it is odd.</li></ul></article>
+            <article><h3>Two-Bounce Rule</h3><ul><li>The receiving side must let the serve bounce.</li><li>The serving side must let the return bounce.</li><li>After those two bounces, either side may volley or play after a bounce.</li></ul></article>
+            <article><h3>The Kitchen</h3><ul><li>The non-volley zone extends 7 feet from each side of the net.</li><li>You may not volley while touching the zone or its line.</li><li>Momentum after a volley may not carry you or anything you wear or carry into the zone.</li><li>You may stand in the kitchen when you are not volleying.</li></ul></article>
+            <article><h3>Common Faults</h3><ul><li>The ball lands out, hits the net without crossing, or bounces twice.</li><li>A player volleys before both required bounces or from the kitchen.</li><li>A player, clothing, or paddle touches the net while the ball is live.</li><li>The ball hits a player or something the player is wearing or carrying.</li><li>The serve lands outside the correct service court.</li></ul></article>
+          </div>
+          <article className="line-calling-guide"><h3>Who Makes The Call?</h3><p>In games without line judges, players call the lines on their own end. Partners should resolve disagreement in favor of the opponents. Make an out call promptly and clearly; otherwise play continues. Spectators should not make line calls.</p></article>
+          <a className="official-rules-link" href="https://usapickleball.org/rules/" target="_blank" rel="noreferrer">Open The Complete Official Rulebook <ExternalLink size={16} /></a>
+        </div>
+      </section>
+    </div>
   );
 }
 
