@@ -104,7 +104,7 @@ export function FairPlayApp() {
 
   if (!ready || !authReady) return <main className="shell loading">Getting the court ready…</main>;
   const authModal = showAuth ? <AuthScreen onClose={() => setShowAuth(false)} /> : null;
-  if (!session) return <><Setup onCreate={setSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} history={sessionHistory} onViewHistory={setSelectedHistory} />{authModal}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}</>;
+  if (!session) return <><Setup onCreate={setSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} />{authModal}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}</>;
   if (activeMatch) {
     return (
       <>
@@ -187,7 +187,7 @@ function Header({ trailing, user, saveState, onSignIn }: { trailing?: React.Reac
   );
 }
 
-function Setup({ onCreate, user, saveState, onSignIn, history, onViewHistory }: { onCreate: (session: Session) => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void; history: SessionHistoryItem[]; onViewHistory: (item: SessionHistoryItem) => void }) {
+function Setup({ onCreate, user, saveState, onSignIn, onHistory }: { onCreate: (session: Session) => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void; onHistory: () => void }) {
   const [name, setName] = useState("");
   const [courts, setCourts] = useState(1);
   const [players, setPlayers] = useState(["Alex", "Bea", "Cal", "Dani"]);
@@ -228,7 +228,7 @@ function Setup({ onCreate, user, saveState, onSignIn, history, onViewHistory }: 
           <span className="eyebrow">More play. Better rotation.</span>
           <h1>Everyone gets a fair shot.</h1>
           <p className="lede">Build balanced pickleball rounds, keep partners moving, and score every game from the sideline.</p>
-          <button className="button rules-button" onClick={() => setShowRules(true)}><BookOpen size={18} /> View Pickleball Rules</button>
+          <div className="home-actions"><button className="button rules-button" onClick={() => setShowRules(true)}><BookOpen size={18} /> View Pickleball Rules</button>{user && <button className="button rules-button" onClick={onHistory}><History size={18} /> Session History</button>}</div>
         </section>
         <section className="card setup-card">
           <h2>Start a Session</h2>
@@ -271,21 +271,8 @@ function Setup({ onCreate, user, saveState, onSignIn, history, onViewHistory }: 
           <button className="button primary" onClick={submit}>Generate Fair Rounds</button>
         </section>
       </div>
-      {user && <SavedSessions items={history} onView={onViewHistory} />}
       {showRules && <RulesGuide onClose={() => setShowRules(false)} />}
     </main>
-  );
-}
-
-function SavedSessions({ items, onView }: { items: SessionHistoryItem[]; onView: (item: SessionHistoryItem) => void }) {
-  return (
-    <section className="saved-sessions">
-      <div className="saved-sessions-heading"><div><span className="eyebrow">Your Games</span><h2>Session History</h2></div><History size={22} /></div>
-      {items.length ? <div className="history-list">{items.map((item) => {
-        const playedMatches = item.session.completedRounds.flatMap((round) => round.matches).length;
-        return <button className="history-item" key={item.session.id} onClick={() => onView(item)}><div><strong>{item.session.name}</strong><small>{item.session.rules.name}</small></div><span><Users size={14} /> {item.session.players.length}</span><span><Clock3 size={14} /> {item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved"}</span><em>{playedMatches} Match{playedMatches === 1 ? "" : "es"}</em></button>;
-      })}</div> : <div className="empty-history"><History size={23} /><div><strong>No Saved Sessions Yet</strong><p>Finish a signed-in session and it will appear here.</p></div></div>}
-    </section>
   );
 }
 
