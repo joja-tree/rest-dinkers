@@ -1,6 +1,6 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore } from "firebase/firestore";
 
 const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 const firebaseConfig = {
@@ -20,4 +20,5 @@ function app() {
 }
 
 export const firebaseAuth = () => getAuth(app());
-export const firebaseDb = () => getFirestore(app());
+let firestore: ReturnType<typeof initializeFirestore> | undefined;
+export const firebaseDb = () => firestore ??= initializeFirestore(app(), { experimentalAutoDetectLongPolling: true });

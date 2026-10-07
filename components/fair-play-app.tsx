@@ -56,10 +56,14 @@ export function FairPlayApp() {
   useEffect(() => {
     if (!user || !session) return;
     setSaveState("saving");
-    const timeout = window.setTimeout(() => saveActiveSession(user.uid, session)
-      .then(() => setSaveState("saved"))
-      .catch(() => setSaveState("offline")), 350);
-    return () => window.clearTimeout(timeout);
+    let failureTimeout: number | undefined;
+    const saveTimeout = window.setTimeout(() => {
+      failureTimeout = window.setTimeout(() => setSaveState("offline"), 8000);
+      saveActiveSession(user.uid, session)
+        .then(() => { if (failureTimeout) window.clearTimeout(failureTimeout); setSaveState("saved"); })
+        .catch(() => { if (failureTimeout) window.clearTimeout(failureTimeout); setSaveState("offline"); });
+    }, 350);
+    return () => { window.clearTimeout(saveTimeout); if (failureTimeout) window.clearTimeout(failureTimeout); };
   }, [session, user]);
 
   const activeMatch = session?.current.matches.find((match) => match.id === activeMatchId);
