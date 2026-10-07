@@ -22,6 +22,20 @@ button { cursor: pointer; }
 .brand { display: flex; align-items: center; }
 .brand img { display: block; width: 190px; height: 86px; object-fit: contain; }
 .status-pill { border: 1px solid rgba(242,239,215,.35); border-radius: 999px; padding: 8px 12px; font-size: 12px; }
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.account-pill { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 7px 6px 13px; border: 1px solid rgba(242,239,215,.25); border-radius: 999px; }
+.account-pill span, .account-pill strong, .account-pill small { display: block; }
+.account-pill strong { max-width: 135px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.account-pill small { margin-top: 2px; color: rgba(242,239,215,.65); font-size: 9px; }
+.account-pill button { display: grid; place-items: center; width: 35px; height: 35px; border: 0; border-radius: 50%; background: rgba(242,239,215,.12); color: var(--cream); }
+.auth-wrap { display: grid; grid-template-columns: 1.1fr .8fr; gap: 42px; align-items: center; width: min(980px, calc(100% - 32px)); min-height: calc(100vh - 122px); margin: 0 auto; padding: 45px 0; }
+.auth-intro h1 { max-width: 600px; }
+.auth-card { max-width: 430px; width: 100%; justify-self: end; }
+.auth-card h2 { margin: 0 0 6px; font-size: 29px; letter-spacing: -.04em; }
+.google-button { width: 100%; border: 1px solid var(--line); background: white; color: var(--ink); }
+.auth-divider { display: flex; align-items: center; gap: 12px; margin: 17px 0; color: var(--muted); font-size: 11px; }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.auth-switch { width: 100%; margin-top: 15px; border: 0; background: transparent; color: var(--forest); font-size: 12px; font-weight: 800; }
 .content { width: min(1080px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 70px; }
 .hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 34px; align-items: center; min-height: 65vh; }
 .eyebrow { color: var(--lime-dark); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
@@ -186,6 +200,9 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .loading { display: grid; place-items: center; color: var(--forest); }
 @media (max-width: 760px) {
   .hero, .round-grid { grid-template-columns: 1fr; }
+  .auth-wrap { grid-template-columns: 1fr; gap: 22px; min-height: auto; padding-top: 28px; }
+  .auth-intro h1 { font-size: 52px; }
+  .auth-card { max-width: none; }
   .round-column, .round-grid > div:last-child { display: contents; }
   .current-round { order: 1; }
   .up-next-round { order: 2; }
@@ -194,6 +211,9 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
   .hero { padding-top: 12px; }
   .session-header { align-items: flex-start; flex-direction: column; }
   .status-pill { display: none; }
+  .header-actions { margin-left: auto; }
+  .account-pill { min-height: 43px; padding-left: 10px; }
+  .account-pill strong { max-width: 86px; }
   .brand img { width: 165px; height: 74px; }
   .content { width: min(100% - 22px, 1080px); padding-top: 24px; }
   .card { padding: 18px; border-radius: 20px; }

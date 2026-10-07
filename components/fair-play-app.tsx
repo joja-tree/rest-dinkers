@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Check, LogOut, Plus, RotateCcw, Trash2 } from "lucide-react";
+import type { User } from "firebase/auth";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
 import type { Match, Session, Team } from "@/lib/domain";
 import { applyCompletedRound } from "@/lib/fair-play";
 import { out, point, undo } from "@/lib/scoring";
 import { sessionSchema } from "@/lib/schemas";
 import { createSession } from "@/lib/session";
+import { firebaseAuth, firebaseConfigured } from "@/firebase/client";
+import { archiveSession, loadActiveSession, saveActiveSession } from "@/firebase/sessions";
 
 const STORAGE_KEY = "rest-dinkers-session-v1";
 
@@ -14,6 +18,26 @@ export function FairPlayApp() {
   const [session, setSession] = useState<Session | null>(null);
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(!firebaseConfigured);
+  const [saveState, setSaveState] = useState<"saved" | "saving" | "offline">(firebaseConfigured ? "saving" : "offline");
+
+  useEffect(() => {
+    if (!firebaseConfigured) return;
+    return onAuthStateChanged(firebaseAuth(), async (nextUser) => {
+      setUser(nextUser);
+      setActiveMatchId(null);
+      if (nextUser) {
+        try {
+          const cloudSession = await loadActiveSession(nextUser.uid);
+          if (cloudSession) setSession(normalizeSession(cloudSession));
+        } catch { setSaveState("offline"); }
+      } else {
+        setSession(null);
+      }
+      setAuthReady(true);
+    });
+  }, []);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -28,6 +52,15 @@ export function FairPlayApp() {
     if (session) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
     else window.localStorage.removeItem(STORAGE_KEY);
   }, [session, ready]);
+
+  useEffect(() => {
+    if (!user || !session) return;
+    setSaveState("saving");
+    const timeout = window.setTimeout(() => saveActiveSession(user.uid, session)
+      .then(() => setSaveState("saved"))
+      .catch(() => setSaveState("offline")), 350);
+    return () => window.clearTimeout(timeout);
+  }, [session, user]);
 
   const activeMatch = session?.current.matches.find((match) => match.id === activeMatchId);
 
@@ -47,8 +80,15 @@ export function FairPlayApp() {
     setActiveMatchId(matchId);
   }
 
-  if (!ready) return <main className="shell loading">Getting the court ready…</main>;
-  if (!session) return <Setup onCreate={setSession} />;
+  async function endSession() {
+    if (!session) return;
+    if (user) await archiveSession(user.uid, session).catch(() => setSaveState("offline"));
+    setSession(null);
+  }
+
+  if (!ready || !authReady) return <main className="shell loading">Getting the court ready…</main>;
+  if (firebaseConfigured && !user) return <AuthScreen />;
+  if (!session) return <Setup onCreate={setSession} user={user} saveState={saveState} />;
   if (activeMatch) {
     return (
       <Scorer
@@ -59,24 +99,77 @@ export function FairPlayApp() {
         onOut={() => updateMatch(out(activeMatch))}
         onUndo={() => updateMatch(undo(activeMatch))}
         onConfigure={updateMatch}
+        user={user}
+        saveState={saveState}
       />
     );
   }
-  return <SessionView session={session} onScore={openMatch} onAdvance={advanceRound} onEnd={() => setSession(null)} />;
+  return <SessionView session={session} onScore={openMatch} onAdvance={advanceRound} onEnd={endSession} user={user} saveState={saveState} />;
 }
 
-function Header({ trailing }: { trailing?: React.ReactNode }) {
+function AuthScreen() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [createAccount, setCreateAccount] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit() {
+    setBusy(true);
+    setError("");
+    try {
+      if (createAccount) await createUserWithEmailAndPassword(firebaseAuth(), email, password);
+      else await signInWithEmailAndPassword(firebaseAuth(), email, password);
+    } catch (reason) {
+      const code = typeof reason === "object" && reason && "code" in reason ? String(reason.code) : "";
+      setError(code.includes("invalid-credential") ? "Email or password is incorrect." : code.includes("email-already-in-use") ? "An account already uses this email." : code.includes("weak-password") ? "Use a password with at least 6 characters." : "We couldn’t sign you in. Please try again.");
+    } finally { setBusy(false); }
+  }
+
+  async function googleSignIn() {
+    setBusy(true);
+    setError("");
+    try { await signInWithPopup(firebaseAuth(), new GoogleAuthProvider()); }
+    catch { setError("Google sign-in could not be completed."); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <main className="shell auth-page">
+      <Header />
+      <div className="auth-wrap">
+        <section className="auth-intro"><span className="eyebrow">Your Games, Everywhere</span><h1>Keep every match.</h1><p className="lede">Sign in to save live sessions, match results, and player statistics across your devices.</p></section>
+        <section className="card auth-card">
+          <h2>{createAccount ? "Create Account" : "Welcome Back"}</h2>
+          <p className="subtle">{createAccount ? "Create your Rest Dinkers account." : "Sign in to continue your saved session."}</p>
+          <button className="button google-button" disabled={busy} onClick={googleSignIn}>Continue With Google</button>
+          <div className="auth-divider"><span>or</span></div>
+          <div className="field"><label htmlFor="auth-email">Email</label><input id="auth-email" className="input" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} /></div>
+          <div className="field"><label htmlFor="auth-password">Password</label><input id="auth-password" className="input" type="password" autoComplete={createAccount ? "new-password" : "current-password"} value={password} onChange={(event) => setPassword(event.target.value)} onKeyDown={(event) => event.key === "Enter" && submit()} /></div>
+          {error && <p className="error">{error}</p>}
+          <button className="button primary" disabled={busy || !email || password.length < 6} onClick={submit}>{busy ? "Please Wait…" : createAccount ? "Create Account" : "Sign In"}</button>
+          <button className="auth-switch" disabled={busy} onClick={() => { setCreateAccount(!createAccount); setError(""); }}>{createAccount ? "Already Have An Account? Sign In" : "New Here? Create An Account"}</button>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function Header({ trailing, user, saveState }: { trailing?: React.ReactNode; user?: User | null; saveState?: "saved" | "saving" | "offline" }) {
   return (
     <header className="topbar">
       <div className="brand">
         <img src="/logo-header.png" alt="Rest Dinkers" />
       </div>
-      {trailing ?? <span className="status-pill">MVP · Local Play</span>}
+      <div className="header-actions">
+        {trailing}
+        {user ? <div className="account-pill"><span><strong>{user.displayName || user.email?.split("@")[0] || "Player"}</strong><small>{saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Offline"}</small></span><button onClick={() => signOut(firebaseAuth())} aria-label="Sign Out"><LogOut size={16} /></button></div> : !trailing && <span className="status-pill">MVP · Local Play</span>}
+      </div>
     </header>
   );
 }
 
-function Setup({ onCreate }: { onCreate: (session: Session) => void }) {
+function Setup({ onCreate, user, saveState }: { onCreate: (session: Session) => void; user?: User | null; saveState?: "saved" | "saving" | "offline" }) {
   const [name, setName] = useState("");
   const [courts, setCourts] = useState(1);
   const [players, setPlayers] = useState(["Alex", "Bea", "Cal", "Dani", "Eli", "Fran"]);
@@ -93,7 +186,7 @@ function Setup({ onCreate }: { onCreate: (session: Session) => void }) {
 
   return (
     <main className="shell">
-      <Header />
+      <Header user={user} saveState={saveState} />
       <div className="content hero">
         <section>
           <span className="eyebrow">More play. Better rotation.</span>
@@ -133,11 +226,11 @@ function Setup({ onCreate }: { onCreate: (session: Session) => void }) {
   );
 }
 
-function SessionView({ session, onScore, onAdvance, onEnd }: { session: Session; onScore: (id: string) => void; onAdvance: () => void; onEnd: () => void }) {
+function SessionView({ session, onScore, onAdvance, onEnd, user, saveState }: { session: Session; onScore: (id: string) => void; onAdvance: () => void; onEnd: () => void; user?: User | null; saveState?: "saved" | "saving" | "offline" }) {
   const complete = session.current.matches.every((match) => Boolean(match.winner));
   return (
     <main className="shell">
-      <Header trailing={<button className="button secondary" onClick={onEnd}>End Session</button>} />
+      <Header user={user} saveState={saveState} trailing={<button className="button secondary" onClick={onEnd}>End Session</button>} />
       <div className="content">
         <div className="session-header">
           <div><span className="eyebrow">Live Session</span><h1>{session.name}</h1><p className="subtle">{session.players.length} players · {session.courts} court{session.courts > 1 ? "s" : ""}</p></div>
@@ -227,7 +320,7 @@ function PreviousRounds({ session }: { session: Session }) {
   );
 }
 
-function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure }: { session: Session; match: Match; onBack: () => void; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void }) {
+function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure, user, saveState }: { session: Session; match: Match; onBack: () => void; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void; user?: User | null; saveState?: "saved" | "saving" | "offline" }) {
   const [editingSetup, setEditingSetup] = useState(false);
   const serving = match.servingTeam === "A" ? match.teamA : match.teamB;
   const teamAHasServed = match.teamA.some((id) => (match.serveCounts[id] ?? 0) > 0);
@@ -236,7 +329,7 @@ function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure }:
   if (!match.setupComplete) {
     return (
       <main className="shell">
-        <Header />
+        <Header user={user} saveState={saveState} />
         <div className="content scorer setup-only">
           <div className="scorer-meta"><p className="eyebrow">Court {match.court} · Match Setup</p></div>
           <MatchSetup match={match} session={session} onChange={onConfigure} />
@@ -246,7 +339,7 @@ function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure }:
   }
   return (
     <main className="shell">
-      <Header />
+      <Header user={user} saveState={saveState} />
       <div className="content scorer">
         <div className="scorer-meta">
           <p className="eyebrow">Court {match.court} · Double Serve</p>
