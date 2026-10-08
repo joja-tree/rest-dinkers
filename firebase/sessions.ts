@@ -30,8 +30,7 @@ export async function saveActiveSession(uid: string, session: Session) {
   ]);
 }
 
-export async function archiveSession(uid: string, session: Session) {
-  const archiveId = `${session.id}-completed-${Date.now()}`;
+export async function archiveSession(uid: string, session: Session, archiveId = `${session.id}-completed-${Date.now()}`) {
   await Promise.all([
     setDoc(sessionRef(uid, archiveId), { session, status: "completed", updatedAt: serverTimestamp() }),
     setDoc(userRef(uid), { activeSessionId: null, updatedAt: serverTimestamp() }, { merge: true }),

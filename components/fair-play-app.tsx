@@ -15,7 +15,6 @@ import { DEFAULT_RULES, RULE_PRESETS } from "@/lib/game-rules";
 
 const STORAGE_KEY = "rest-dinkers-session-v1";
 const FORMAT_KEY = "rest-dinkers-game-format";
-const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "0.1.0";
 const BUILD_VERSION = process.env.NEXT_PUBLIC_BUILD_VERSION ?? "local";
 type SaveState = "saved" | "device";
 
@@ -44,18 +43,22 @@ export function FairPlayApp() {
       setActiveMatchId(null);
       if (nextUser) {
         const cached = window.localStorage.getItem(`rest-dinkers-history-${nextUser.uid}`);
+        let cachedHistory: SessionHistoryItem[] = [];
         if (cached) {
           try {
             const history = JSON.parse(cached) as SessionHistoryItem[];
-            setSessionHistory(history.map((item) => ({ ...item, session: normalizeSession(item.session) })));
+            cachedHistory = history.map((item) => ({ ...item, session: normalizeSession(item.session) }));
+            setSessionHistory(cachedHistory);
           } catch { window.localStorage.removeItem(`rest-dinkers-history-${nextUser.uid}`); }
         }
         try {
           const [cloudSession, history] = await Promise.all([loadActiveSession(nextUser.uid), loadSessionHistory(nextUser.uid)]);
           if (cloudSession) setSession(normalizeSession(cloudSession));
           const normalized = history.map((item) => ({ ...item, session: normalizeSession(item.session) }));
-          setSessionHistory(normalized);
-          window.localStorage.setItem(`rest-dinkers-history-${nextUser.uid}`, JSON.stringify(normalized));
+          const cloudIds = new Set(normalized.map((item) => item.documentId ?? item.session.id));
+          const merged = [...normalized, ...cachedHistory.filter((item) => !cloudIds.has(item.documentId ?? item.session.id))].sort((a, b) => b.savedAt - a.savedAt);
+          setSessionHistory(merged);
+          window.localStorage.setItem(`rest-dinkers-history-${nextUser.uid}`, JSON.stringify(merged));
         } catch { setSaveState("device"); }
       } else setSessionHistory([]);
       setAuthReady(true);
@@ -115,14 +118,14 @@ export function FairPlayApp() {
   async function endSession() {
     if (!session) return;
     if (user) {
-      try {
-        const archivedSession = prepareSessionForHistory(session);
-        const savedAt = Date.now();
-        const documentId = await archiveSession(user.uid, archivedSession);
-        const next = [{ session: archivedSession, savedAt, documentId }, ...sessionHistory];
-        setSessionHistory(next);
-        window.localStorage.setItem(`rest-dinkers-history-${user.uid}`, JSON.stringify(next));
-      } catch { setSaveState("device"); }
+      const archivedSession = prepareSessionForHistory(session);
+      const savedAt = Date.now();
+      const documentId = `${session.id}-completed-${savedAt}`;
+      const next = [{ session: archivedSession, savedAt, documentId }, ...sessionHistory];
+      setSessionHistory(next);
+      window.localStorage.setItem(`rest-dinkers-history-${user.uid}`, JSON.stringify(next));
+      const timeout = new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("Archive timed out.")), 6000));
+      Promise.race([archiveSession(user.uid, archivedSession, documentId), timeout]).catch(() => setSaveState("device"));
     }
     setSession(null);
   }
@@ -239,7 +242,7 @@ function Header({ trailing, user, saveState, onSignIn, onHistory, onRules }: { t
       </div>
       <div className="header-actions">
         {trailing}
-        {user ? <div className="account-menu"><button className="account-pill" onClick={() => setAccountOpen(!accountOpen)} aria-expanded={accountOpen}><span><strong>{user.displayName || user.email?.split("@")[0] || "Player"}</strong><small>{saveState === "saved" ? "Saved" : "Saved On Device"}</small></span><i><ChevronDown size={17} /></i></button>{accountOpen && <div className="account-dropdown">{onRules && <button onClick={() => { setAccountOpen(false); onRules(); }}><BookOpen size={16} /> Pickleball Rules</button>}{onHistory && <button onClick={() => { setAccountOpen(false); onHistory(); }}><History size={16} /> Session History</button>}<div className="app-version">Version {APP_VERSION} · Build {BUILD_VERSION}</div><button onClick={() => signOut(firebaseAuth())}><LogOut size={16} /> Sign Out</button></div>}</div> : firebaseConfigured && onSignIn ? <button className="button secondary sign-in-button" onClick={onSignIn}>Sign In</button> : !trailing && <span className="status-pill">MVP · Local Play</span>}
+        {user ? <div className="account-menu"><button className="account-pill" onClick={() => setAccountOpen(!accountOpen)} aria-expanded={accountOpen}><span><strong>{user.displayName || user.email?.split("@")[0] || "Player"}</strong><small>{saveState === "saved" ? "Saved" : "Saved On Device"}</small></span><i><ChevronDown size={17} /></i></button>{accountOpen && <div className="account-dropdown">{onRules && <button onClick={() => { setAccountOpen(false); onRules(); }}><BookOpen size={16} /> Pickleball Rules</button>}{onHistory && <button onClick={() => { setAccountOpen(false); onHistory(); }}><History size={16} /> Session History</button>}<div className="app-version">Build {BUILD_VERSION}</div><button onClick={() => signOut(firebaseAuth())}><LogOut size={16} /> Sign Out</button></div>}</div> : firebaseConfigured && onSignIn ? <button className="button secondary sign-in-button" onClick={onSignIn}>Sign In</button> : !trailing && <span className="status-pill">MVP · Local Play</span>}
       </div>
     </header>
   );
