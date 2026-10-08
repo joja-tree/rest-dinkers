@@ -114,11 +114,12 @@ export function FairPlayApp() {
     if (!session) return;
     if (user) {
       try {
-        await archiveSession(user.uid, prepareSessionForHistory(session));
-        const history = await loadSessionHistory(user.uid);
-        const normalized = history.map((item) => ({ ...item, session: normalizeSession(item.session) }));
-        setSessionHistory(normalized);
-        window.localStorage.setItem(`rest-dinkers-history-${user.uid}`, JSON.stringify(normalized));
+        const archivedSession = prepareSessionForHistory(session);
+        const savedAt = Date.now();
+        const documentId = await archiveSession(user.uid, archivedSession);
+        const next = [{ session: archivedSession, savedAt, documentId }, ...sessionHistory];
+        setSessionHistory(next);
+        window.localStorage.setItem(`rest-dinkers-history-${user.uid}`, JSON.stringify(next));
       } catch { setSaveState("device"); }
     }
     setSession(null);
@@ -134,8 +135,8 @@ export function FairPlayApp() {
     setDeleting(true);
     setDeleteError("");
     try {
-      await deleteSession(user.uid, pendingDelete.session.id);
-      const next = sessionHistory.filter((entry) => entry.session.id !== pendingDelete.session.id);
+      await deleteSession(user.uid, pendingDelete.documentId ?? pendingDelete.session.id);
+      const next = sessionHistory.filter((entry) => (entry.documentId ?? entry.session.id) !== (pendingDelete.documentId ?? pendingDelete.session.id));
       setSessionHistory(next);
       window.localStorage.setItem(`rest-dinkers-history-${user.uid}`, JSON.stringify(next));
       if (selectedHistory?.session.id === pendingDelete.session.id) setSelectedHistory(null);
@@ -333,7 +334,7 @@ function HistoryList({ items, onView, onDelete, filtered = false }: { items: Ses
   if (!items.length) return <div className="empty-history"><History size={23} /><div><strong>{filtered ? "No Matching Sessions" : "No Saved Sessions Yet"}</strong><p>{filtered ? "Try another name or date, or clear the filters." : "Finish a signed-in session and it will appear here."}</p></div></div>;
   return <div className="history-list">{items.map((item) => {
     const playedMatches = historyRounds(item.session).flatMap((round) => round.matches).length;
-    return <div className="history-item" key={item.session.id}><button className="history-open" onClick={() => onView(item)}><div><strong>{item.session.name}</strong><small>{item.session.rules.name}</small></div><span><Users size={14} /> {item.session.players.length}</span><span><Clock3 size={14} /> {item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved"}</span><em>{playedMatches} Match{playedMatches === 1 ? "" : "es"}</em></button><button className="history-delete" onClick={() => onDelete(item)} aria-label={`Delete ${item.session.name}`}><Trash2 size={17} /></button></div>;
+    return <div className="history-item" key={item.documentId ?? item.session.id}><button className="history-open" onClick={() => onView(item)}><div><strong>{item.session.name}</strong><small>{item.session.rules.name}</small></div><span><Users size={14} /> {item.session.players.length}</span><span><Clock3 size={14} /> {item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved"}</span><em>{playedMatches} Match{playedMatches === 1 ? "" : "es"}</em></button><button className="history-delete" onClick={() => onDelete(item)} aria-label={`Delete ${item.session.name}`}><Trash2 size={17} /></button></div>;
   })}</div>;
 }
 

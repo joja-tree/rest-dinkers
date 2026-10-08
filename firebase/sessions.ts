@@ -5,14 +5,13 @@ import { firebaseDb } from "./client";
 const userRef = (uid: string) => doc(firebaseDb(), "users", uid);
 const sessionRef = (uid: string, id: string) => doc(firebaseDb(), "users", uid, "sessions", id);
 
-export type SessionHistoryItem = { session: Session; savedAt: number };
+export type SessionHistoryItem = { session: Session; savedAt: number; documentId?: string };
 
 export async function loadSessionHistory(uid: string): Promise<SessionHistoryItem[]> {
   const saved = await getDocs(collection(firebaseDb(), "users", uid, "sessions"));
   return saved.docs
-    .map((item) => item.data())
-    .filter((item) => item.status === "completed" && item.session)
-    .map((item) => ({ session: item.session as Session, savedAt: item.updatedAt instanceof Timestamp ? item.updatedAt.toMillis() : 0 }))
+    .filter((item) => item.data().status === "completed" && item.data().session)
+    .map((item) => { const data = item.data(); return { session: data.session as Session, savedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : 0, documentId: item.id }; })
     .sort((a, b) => b.savedAt - a.savedAt);
 }
 
@@ -32,12 +31,14 @@ export async function saveActiveSession(uid: string, session: Session) {
 }
 
 export async function archiveSession(uid: string, session: Session) {
+  const archiveId = `${session.id}-completed-${Date.now()}`;
   await Promise.all([
-    setDoc(sessionRef(uid, session.id), { session, status: "completed", updatedAt: serverTimestamp() }, { merge: true }),
+    setDoc(sessionRef(uid, archiveId), { session, status: "completed", updatedAt: serverTimestamp() }),
     setDoc(userRef(uid), { activeSessionId: null, updatedAt: serverTimestamp() }, { merge: true }),
   ]);
+  return archiveId;
 }
 
-export async function deleteSession(uid: string, sessionId: string) {
-  await deleteDoc(sessionRef(uid, sessionId));
+export async function deleteSession(uid: string, documentId: string) {
+  await deleteDoc(sessionRef(uid, documentId));
 }
