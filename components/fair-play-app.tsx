@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Check, ChevronDown, Clock3, ExternalLink, History, LogOut, Plus, RotateCcw, Trash2, Users } from "lucide-react";
+import { BookOpen, CalendarDays, Check, ChevronDown, Clock3, ExternalLink, History, LogOut, Plus, RotateCcw, Search, Trash2, Users, X } from "lucide-react";
 import type { User } from "firebase/auth";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
 import type { GameFormat, Match, Session, Team } from "@/lib/domain";
@@ -330,7 +330,7 @@ function Setup({ onCreate, user, saveState, onSignIn, onHistory, onRules }: { on
 }
 
 function HistoryList({ items, onView, onDelete, filtered = false }: { items: SessionHistoryItem[]; onView: (item: SessionHistoryItem) => void; onDelete: (item: SessionHistoryItem) => void; filtered?: boolean }) {
-  if (!items.length) return <div className="empty-history"><History size={23} /><div><strong>{filtered ? "No Sessions On This Date" : "No Saved Sessions Yet"}</strong><p>{filtered ? "Choose another date or clear the filter." : "Finish a signed-in session and it will appear here."}</p></div></div>;
+  if (!items.length) return <div className="empty-history"><History size={23} /><div><strong>{filtered ? "No Matching Sessions" : "No Saved Sessions Yet"}</strong><p>{filtered ? "Try another name or date, or clear the filters." : "Finish a signed-in session and it will appear here."}</p></div></div>;
   return <div className="history-list">{items.map((item) => {
     const playedMatches = historyRounds(item.session).flatMap((round) => round.matches).length;
     return <div className="history-item" key={item.session.id}><button className="history-open" onClick={() => onView(item)}><div><strong>{item.session.name}</strong><small>{item.session.rules.name}</small></div><span><Users size={14} /> {item.session.players.length}</span><span><Clock3 size={14} /> {item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved"}</span><em>{playedMatches} Match{playedMatches === 1 ? "" : "es"}</em></button><button className="history-delete" onClick={() => onDelete(item)} aria-label={`Delete ${item.session.name}`}><Trash2 size={17} /></button></div>;
@@ -339,8 +339,11 @@ function HistoryList({ items, onView, onDelete, filtered = false }: { items: Ses
 
 function SessionHistoryLibrary({ items, onView, onDelete, onClose }: { items: SessionHistoryItem[]; onView: (item: SessionHistoryItem) => void; onDelete: (item: SessionHistoryItem) => void; onClose: () => void }) {
   const [date, setDate] = useState("");
-  const filtered = date ? items.filter((item) => item.savedAt > 0 && localDateKey(item.savedAt) === date) : items;
-  return <div className="modal-backdrop rules-backdrop" role="presentation" onMouseDown={onClose}><section className="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-library-title" onMouseDown={(event) => event.stopPropagation()}><header className="rules-header"><div><span className="eyebrow">Your Games</span><h2 id="history-library-title">Session History</h2><p>Completed sessions are saved to your account.</p></div><button className="modal-close" onClick={onClose} aria-label="Close Session History">×</button></header><div className="history-details"><div className="history-filter"><label htmlFor="history-date">Search By Date</label><div><input id="history-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />{date && <button onClick={() => setDate("")}>Clear</button>}</div><small>{filtered.length} Session{filtered.length === 1 ? "" : "s"}</small></div><HistoryList items={filtered} onView={onView} onDelete={onDelete} filtered={Boolean(date)} /></div></section></div>;
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const filtered = items.filter((item) => (!date || (item.savedAt > 0 && localDateKey(item.savedAt) === date)) && (!normalizedQuery || item.session.name.toLocaleLowerCase().includes(normalizedQuery)));
+  const filtering = Boolean(date || normalizedQuery);
+  return <div className="modal-backdrop rules-backdrop" role="presentation" onMouseDown={onClose}><section className="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-library-title" onMouseDown={(event) => event.stopPropagation()}><header className="rules-header"><div><span className="eyebrow">Your Games</span><h2 id="history-library-title">Session History</h2><p>Completed sessions are saved to your account.</p></div><button className="modal-close" onClick={onClose} aria-label="Close Session History">×</button></header><div className="history-details"><div className="history-filter"><div className="history-filter-heading"><div><strong>Find A Session</strong><small>Search by name, date, or both.</small></div><span>{filtered.length} Session{filtered.length === 1 ? "" : "s"}</span></div><div className="history-filter-fields"><label><span>Session Name</span><div className="filter-input"><Search size={16} /><input type="search" placeholder="Search Sessions" value={query} onChange={(event) => setQuery(event.target.value)} />{query && <button onClick={() => setQuery("")} aria-label="Clear Session Name"><X size={15} /></button>}</div></label><label><span>Date</span><div className="filter-input date-filter"><CalendarDays size={16} /><input type="date" value={date} onChange={(event) => setDate(event.target.value)} />{date && <button onClick={() => setDate("")} aria-label="Clear Date"><X size={15} /></button>}</div></label></div>{filtering && <button className="clear-filters" onClick={() => { setQuery(""); setDate(""); }}>Clear Filters</button>}</div><HistoryList items={filtered} onView={onView} onDelete={onDelete} filtered={filtering} /></div></section></div>;
 }
 
 function DeleteSessionConfirmation({ item, busy, error, onCancel, onConfirm }: { item: SessionHistoryItem; busy: boolean; error: string; onCancel: () => void; onConfirm: () => void }) {
