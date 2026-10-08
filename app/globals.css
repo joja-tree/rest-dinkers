@@ -161,6 +161,16 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .history-filter input { min-height: 42px; padding: 0 11px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--ink); }
 .history-filter button { min-height: 42px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--forest); color: var(--cream); font-size: 10px; font-weight: 900; }
 .history-filter small { padding-bottom: 10px; color: var(--muted); font-size: 10px; font-weight: 800; }
+.delete-backdrop { z-index: 140; }
+.delete-confirmation { width: min(430px, 100%); padding: 27px; border-radius: 24px; background: white; box-shadow: 0 28px 90px rgba(13,48,36,.38); text-align: center; }
+.delete-icon { display: grid; place-items: center; width: 54px; height: 54px; margin: 0 auto 15px; border-radius: 50%; background: rgba(199,86,61,.1); color: var(--danger); }
+.delete-confirmation h2 { margin: 6px 0 8px; font-size: 27px; letter-spacing: -.04em; }
+.delete-confirmation > p { margin: 0 auto; max-width: 340px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.delete-confirmation .delete-error { margin-top: 12px; padding: 9px 11px; border-radius: 10px; background: rgba(199,86,61,.09); color: var(--danger); font-size: 11px; }
+.delete-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 21px; }
+.delete-actions button { min-height: 48px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--ink); font-size: 12px; font-weight: 900; }
+.delete-actions button.danger { border-color: var(--danger); background: var(--danger); color: white; }
+.delete-actions button:disabled { cursor: not-allowed; opacity: .55; }
 .history-player-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .history-player-summary > div { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
 .history-player-summary strong, .history-player-summary span { display: block; }

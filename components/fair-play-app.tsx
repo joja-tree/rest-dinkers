@@ -29,6 +29,9 @@ export function FairPlayApp() {
   const [selectedHistory, setSelectedHistory] = useState<SessionHistoryItem | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<SessionHistoryItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const online = useOnlineStatus();
 
   useEffect(() => {
@@ -121,22 +124,30 @@ export function FairPlayApp() {
     setSession(null);
   }
 
-  async function removeHistorySession(item: SessionHistoryItem) {
-    if (!user || !window.confirm(`Delete "${item.session.name}" from Session History? This cannot be undone.`)) return;
+  function removeHistorySession(item: SessionHistoryItem) {
+    setDeleteError("");
+    setPendingDelete(item);
+  }
+
+  async function confirmDeleteSession() {
+    if (!user || !pendingDelete) return;
+    setDeleting(true);
+    setDeleteError("");
     try {
-      await deleteSession(user.uid, item.session.id);
-      const next = sessionHistory.filter((entry) => entry.session.id !== item.session.id);
+      await deleteSession(user.uid, pendingDelete.session.id);
+      const next = sessionHistory.filter((entry) => entry.session.id !== pendingDelete.session.id);
       setSessionHistory(next);
       window.localStorage.setItem(`rest-dinkers-history-${user.uid}`, JSON.stringify(next));
-      if (selectedHistory?.session.id === item.session.id) setSelectedHistory(null);
+      if (selectedHistory?.session.id === pendingDelete.session.id) setSelectedHistory(null);
+      setPendingDelete(null);
     } catch {
-      window.alert("This session could not be deleted. Check your connection and try again.");
-    }
+      setDeleteError("This session could not be deleted. Check your connection and try again.");
+    } finally { setDeleting(false); }
   }
 
   if (!ready || !authReady) return <main className="shell loading">Getting the court ready…</main>;
   const authModal = showAuth ? <AuthScreen onClose={() => setShowAuth(false)} /> : null;
-  if (!session) return <><Setup onCreate={setSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onDelete={removeHistorySession} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => { setSelectedHistory(null); setShowHistory(true); }} />}</>;
+  if (!session) return <><Setup onCreate={setSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onDelete={removeHistorySession} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => { setSelectedHistory(null); setShowHistory(true); }} />}{pendingDelete && <DeleteSessionConfirmation item={pendingDelete} busy={deleting} error={deleteError} onCancel={() => setPendingDelete(null)} onConfirm={confirmDeleteSession} />}</>;
   if (activeMatch) {
     return (
       <>
@@ -159,10 +170,11 @@ export function FairPlayApp() {
       {showRules && <RulesGuide onClose={() => setShowRules(false)} />}
       {showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onDelete={removeHistorySession} onClose={() => setShowHistory(false)} />}
       {selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => { setSelectedHistory(null); setShowHistory(true); }} />}
+      {pendingDelete && <DeleteSessionConfirmation item={pendingDelete} busy={deleting} error={deleteError} onCancel={() => setPendingDelete(null)} onConfirm={confirmDeleteSession} />}
       </>
     );
   }
-  return <><SessionView session={session} onScore={openMatch} onAdvance={advanceRound} onEnd={endSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onDelete={removeHistorySession} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => { setSelectedHistory(null); setShowHistory(true); }} />}</>;
+  return <><SessionView session={session} onScore={openMatch} onAdvance={advanceRound} onEnd={endSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onDelete={removeHistorySession} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => { setSelectedHistory(null); setShowHistory(true); }} />}{pendingDelete && <DeleteSessionConfirmation item={pendingDelete} busy={deleting} error={deleteError} onCancel={() => setPendingDelete(null)} onConfirm={confirmDeleteSession} />}</>;
 }
 
 function OfflineIndicator() {
@@ -329,6 +341,10 @@ function SessionHistoryLibrary({ items, onView, onDelete, onClose }: { items: Se
   const [date, setDate] = useState("");
   const filtered = date ? items.filter((item) => item.savedAt > 0 && localDateKey(item.savedAt) === date) : items;
   return <div className="modal-backdrop rules-backdrop" role="presentation" onMouseDown={onClose}><section className="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-library-title" onMouseDown={(event) => event.stopPropagation()}><header className="rules-header"><div><span className="eyebrow">Your Games</span><h2 id="history-library-title">Session History</h2><p>Completed sessions are saved to your account.</p></div><button className="modal-close" onClick={onClose} aria-label="Close Session History">×</button></header><div className="history-details"><div className="history-filter"><label htmlFor="history-date">Search By Date</label><div><input id="history-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />{date && <button onClick={() => setDate("")}>Clear</button>}</div><small>{filtered.length} Session{filtered.length === 1 ? "" : "s"}</small></div><HistoryList items={filtered} onView={onView} onDelete={onDelete} filtered={Boolean(date)} /></div></section></div>;
+}
+
+function DeleteSessionConfirmation({ item, busy, error, onCancel, onConfirm }: { item: SessionHistoryItem; busy: boolean; error: string; onCancel: () => void; onConfirm: () => void }) {
+  return <div className="modal-backdrop delete-backdrop" role="presentation" onMouseDown={() => !busy && onCancel()}><section className="delete-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" aria-describedby="delete-description" onMouseDown={(event) => event.stopPropagation()}><div className="delete-icon"><Trash2 size={24} /></div><span className="eyebrow">Delete Saved Session</span><h2 id="delete-title">Delete {item.session.name}?</h2><p id="delete-description">This session and its match history will be permanently removed. This action cannot be undone.</p>{error && <p className="delete-error">{error}</p>}<div className="delete-actions"><button disabled={busy} onClick={onCancel}>Cancel</button><button className="danger" disabled={busy} onClick={onConfirm}>{busy ? "Deleting…" : "Delete Session"}</button></div></section></div>;
 }
 
 function SessionHistoryDetails({ item, onClose }: { item: SessionHistoryItem; onClose: () => void }) {
