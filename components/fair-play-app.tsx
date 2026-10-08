@@ -28,6 +28,7 @@ export function FairPlayApp() {
   const [selectedHistory, setSelectedHistory] = useState<SessionHistoryItem | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const online = useOnlineStatus();
 
   useEffect(() => {
     if (!firebaseConfigured) return;
@@ -36,10 +37,19 @@ export function FairPlayApp() {
       if (nextUser) setShowAuth(false);
       setActiveMatchId(null);
       if (nextUser) {
+        const cached = window.localStorage.getItem(`rest-dinkers-history-${nextUser.uid}`);
+        if (cached) {
+          try {
+            const history = JSON.parse(cached) as SessionHistoryItem[];
+            setSessionHistory(history.map((item) => ({ ...item, session: normalizeSession(item.session) })));
+          } catch { window.localStorage.removeItem(`rest-dinkers-history-${nextUser.uid}`); }
+        }
         try {
           const [cloudSession, history] = await Promise.all([loadActiveSession(nextUser.uid), loadSessionHistory(nextUser.uid)]);
           if (cloudSession) setSession(normalizeSession(cloudSession));
-          setSessionHistory(history.map((item) => ({ ...item, session: normalizeSession(item.session) })));
+          const normalized = history.map((item) => ({ ...item, session: normalizeSession(item.session) }));
+          setSessionHistory(normalized);
+          window.localStorage.setItem(`rest-dinkers-history-${nextUser.uid}`, JSON.stringify(normalized));
         } catch { setSaveState("offline"); }
       } else setSessionHistory([]);
       setAuthReady(true);
@@ -62,6 +72,7 @@ export function FairPlayApp() {
 
   useEffect(() => {
     if (!user || !session) return;
+    if (!online) { setSaveState("offline"); return; }
     setSaveState("saving");
     let failureTimeout: number | undefined;
     const saveTimeout = window.setTimeout(() => {
@@ -71,7 +82,7 @@ export function FairPlayApp() {
         .catch(() => { if (failureTimeout) window.clearTimeout(failureTimeout); setSaveState("offline"); });
     }, 350);
     return () => { window.clearTimeout(saveTimeout); if (failureTimeout) window.clearTimeout(failureTimeout); };
-  }, [session, user]);
+  }, [session, user, online]);
 
   const activeMatch = session?.current.matches.find((match) => match.id === activeMatchId);
 
@@ -97,7 +108,9 @@ export function FairPlayApp() {
       try {
         await archiveSession(user.uid, session);
         const history = await loadSessionHistory(user.uid);
-        setSessionHistory(history.map((item) => ({ ...item, session: normalizeSession(item.session) })));
+        const normalized = history.map((item) => ({ ...item, session: normalizeSession(item.session) }));
+        setSessionHistory(normalized);
+        window.localStorage.setItem(`rest-dinkers-history-${user.uid}`, JSON.stringify(normalized));
       } catch { setSaveState("offline"); }
     }
     setSession(null);
@@ -105,7 +118,7 @@ export function FairPlayApp() {
 
   if (!ready || !authReady) return <main className="shell loading">Getting the court ready…</main>;
   const authModal = showAuth ? <AuthScreen onClose={() => setShowAuth(false)} /> : null;
-  if (!session) return <><Setup onCreate={setSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}</>;
+  if (!session) return <><Setup onCreate={setSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}</>;
   if (activeMatch) {
     return (
       <>
@@ -124,13 +137,18 @@ export function FairPlayApp() {
         onRules={() => setShowRules(true)}
       />
       {authModal}
+      {!online && <OfflineIndicator />}
       {showRules && <RulesGuide onClose={() => setShowRules(false)} />}
       {showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onClose={() => setShowHistory(false)} />}
       {selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}
       </>
     );
   }
-  return <><SessionView session={session} onScore={openMatch} onAdvance={advanceRound} onEnd={endSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}</>;
+  return <><SessionView session={session} onScore={openMatch} onAdvance={advanceRound} onEnd={endSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}</>;
+}
+
+function OfflineIndicator() {
+  return <div className="offline-indicator" role="status"><span /> Offline · Changes Saved On This Device</div>;
 }
 
 function AuthScreen({ onClose }: { onClose: () => void }) {
@@ -656,6 +674,18 @@ function useNow() {
     return () => window.clearInterval(timer);
   }, []);
   return now;
+}
+
+function useOnlineStatus() {
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); };
+  }, []);
+  return online;
 }
 
 function formatTime(seconds: number) {
