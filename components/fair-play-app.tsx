@@ -114,7 +114,7 @@ export function FairPlayApp() {
     if (!session) return;
     if (user) {
       try {
-        await archiveSession(user.uid, session);
+        await archiveSession(user.uid, prepareSessionForHistory(session));
         const history = await loadSessionHistory(user.uid);
         const normalized = history.map((item) => ({ ...item, session: normalizeSession(item.session) }));
         setSessionHistory(normalized);
@@ -359,7 +359,7 @@ function SessionHistoryDetails({ item, onClose }: { item: SessionHistoryItem; on
       <section className="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title" onMouseDown={(event) => event.stopPropagation()}>
         <header className="rules-header"><div><span className="eyebrow">Saved Session</span><h2 id="history-title">{session.name}</h2><p>{session.rules.name} · {session.players.length} Players · {rounds.length} Round{rounds.length === 1 ? "" : "s"}</p></div><button className="modal-close" onClick={onClose} aria-label="Close Session History">×</button></header>
         <div className="history-details">
-          <div className="history-player-summary">{session.players.map((player) => { const games = matches.filter((match) => [...match.teamA, ...match.teamB].includes(player.id)).length; const points = matches.reduce((total, match) => total + match.pointScorers.filter((id) => id === player.id).length, 0); return <div key={player.id}><strong>{player.name}</strong><span>{games} Game{games === 1 ? "" : "s"}</span><span>{points} Point{points === 1 ? "" : "s"}</span></div>; })}</div>
+          <div className="history-player-summary">{session.players.map((player) => { const playerMatches = matches.filter((match) => [...match.teamA, ...match.teamB].includes(player.id)); const games = playerMatches.length; const points = playerMatches.reduce((total, match) => total + (match.teamA.includes(player.id) ? match.scoreA : match.scoreB), 0); return <div key={player.id}><strong>{player.name}</strong><span>{games} Game{games === 1 ? "" : "s"}</span><span>{points} Point{points === 1 ? "" : "s"}</span></div>; })}</div>
           {rounds.length ? rounds.map((round) => <article className="history-round" key={round.number}><h3>Round {round.number}</h3>{round.matches.map((match) => <div className="history-match" key={match.id}><span>Court {match.court}</span><strong>{names(match.teamA, session)} <b>{match.scoreA}</b></strong><strong>{names(match.teamB, session)} <b>{match.scoreB}</b></strong><em>{matchDuration(match)}</em></div>)}</article>) : <div className="empty-history"><History size={23} /><div><strong>No Completed Rounds</strong><p>This session ended before a round was completed.</p></div></div>}
         </div>
       </section>
@@ -373,10 +373,28 @@ function localDateKey(timestamp: number) {
 }
 
 function historyRounds(session: Session) {
-  const currentMatches = session.current.matches.filter((match) => match.setupComplete || match.startedAt || match.history.length || match.scoreA || match.scoreB || match.winner);
+  const currentMatches = session.current.matches.filter(hasRecordedPlay);
   return currentMatches.length
     ? [...session.completedRounds, { ...session.current, matches: currentMatches }]
     : session.completedRounds;
+}
+
+function hasRecordedPlay(match: Match) {
+  return Boolean(match.scoreA || match.scoreB || match.winner || match.endedAt || match.history.length);
+}
+
+function prepareSessionForHistory(session: Session): Session {
+  const playedMatches = session.current.matches.filter(hasRecordedPlay);
+  if (!playedMatches.length) return session;
+  const completedRounds = [...session.completedRounds, { ...session.current, matches: playedMatches }];
+  const matches = completedRounds.flatMap((round) => round.matches);
+  const players = session.players.map((player) => {
+    const playerMatches = matches.filter((match) => [...match.teamA, ...match.teamB].includes(player.id));
+    const points = playerMatches.reduce((total, match) => total + (match.teamA.includes(player.id) ? match.scoreA : match.scoreB), 0);
+    const timePlayedSeconds = playerMatches.reduce((total, match) => total + (match.startedAt && match.endedAt ? Math.max(0, Math.floor((match.endedAt - match.startedAt) / 1000)) : 0), 0);
+    return { ...player, games: playerMatches.length, points, timePlayedSeconds };
+  });
+  return { ...session, players, completedRounds, current: { ...session.current, matches: [] } };
 }
 
 function RulesGuide({ onClose }: { onClose: () => void }) {
