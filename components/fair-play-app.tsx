@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Check, Clock3, ExternalLink, History, LogOut, Plus, RotateCcw, Trash2, Users } from "lucide-react";
+import { BookOpen, Check, ChevronDown, Clock3, ExternalLink, History, LogOut, Plus, RotateCcw, Trash2, Users } from "lucide-react";
 import type { User } from "firebase/auth";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
 import type { GameFormat, Match, Session, Team } from "@/lib/domain";
@@ -119,8 +119,11 @@ export function FairPlayApp() {
         user={user}
         saveState={saveState}
         onSignIn={() => setShowAuth(true)}
+        onHistory={() => setShowHistory(true)}
       />
       {authModal}
+      {showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onClose={() => setShowHistory(false)} />}
+      {selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}
       </>
     );
   }
@@ -173,7 +176,8 @@ function AuthScreen({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Header({ trailing, user, saveState, onSignIn }: { trailing?: React.ReactNode; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void }) {
+function Header({ trailing, user, saveState, onSignIn, onHistory }: { trailing?: React.ReactNode; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void; onHistory?: () => void }) {
+  const [accountOpen, setAccountOpen] = useState(false);
   return (
     <header className="topbar">
       <div className="brand">
@@ -181,7 +185,7 @@ function Header({ trailing, user, saveState, onSignIn }: { trailing?: React.Reac
       </div>
       <div className="header-actions">
         {trailing}
-        {user ? <div className="account-pill"><span><strong>{user.displayName || user.email?.split("@")[0] || "Player"}</strong><small>{saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Offline"}</small></span><button onClick={() => signOut(firebaseAuth())} aria-label="Sign Out"><LogOut size={16} /></button></div> : firebaseConfigured && onSignIn ? <button className="button secondary sign-in-button" onClick={onSignIn}>Sign In</button> : !trailing && <span className="status-pill">MVP · Local Play</span>}
+        {user ? <div className="account-menu"><button className="account-pill" onClick={() => setAccountOpen(!accountOpen)} aria-expanded={accountOpen}><span><strong>{user.displayName || user.email?.split("@")[0] || "Player"}</strong><small>{saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Offline"}</small></span><i><ChevronDown size={17} /></i></button>{accountOpen && <div className="account-dropdown">{onHistory && <button onClick={() => { setAccountOpen(false); onHistory(); }}><History size={16} /> Session History</button>}<button onClick={() => signOut(firebaseAuth())}><LogOut size={16} /> Sign Out</button></div>}</div> : firebaseConfigured && onSignIn ? <button className="button secondary sign-in-button" onClick={onSignIn}>Sign In</button> : !trailing && <span className="status-pill">MVP · Local Play</span>}
       </div>
     </header>
   );
@@ -222,13 +226,13 @@ function Setup({ onCreate, user, saveState, onSignIn, onHistory }: { onCreate: (
 
   return (
     <main className="shell">
-      <Header user={user} saveState={saveState} onSignIn={onSignIn} />
+      <Header user={user} saveState={saveState} onSignIn={onSignIn} onHistory={onHistory} />
       <div className="content hero">
         <section>
           <span className="eyebrow">More play. Better rotation.</span>
           <h1>Everyone gets a fair shot.</h1>
           <p className="lede">Build balanced pickleball rounds, keep partners moving, and score every game from the sideline.</p>
-          <div className="home-actions"><button className="button rules-button" onClick={() => setShowRules(true)}><BookOpen size={18} /> View Pickleball Rules</button>{user && <button className="button rules-button" onClick={onHistory}><History size={18} /> Session History</button>}</div>
+          <div className="home-actions"><button className="button rules-button" onClick={() => setShowRules(true)}><BookOpen size={18} /> View Pickleball Rules</button></div>
         </section>
         <section className="card setup-card">
           <h2>Start a Session</h2>
@@ -338,7 +342,7 @@ function SessionView({ session, onScore, onAdvance, onEnd, user, saveState, onSi
   const complete = session.current.matches.every((match) => Boolean(match.winner));
   return (
     <main className="shell">
-      <Header user={user} saveState={saveState} onSignIn={onSignIn} trailing={<><button className="button secondary header-history-button" onClick={onHistory}><History size={15} /> History</button><button className="button secondary" onClick={onEnd}>End Session</button></>} />
+      <Header user={user} saveState={saveState} onSignIn={onSignIn} onHistory={onHistory} trailing={<button className="button secondary" onClick={onEnd}>End Session</button>} />
       <div className="content">
         <div className="session-header">
           <div><span className="eyebrow">Live Session</span><h1>{session.name}</h1><p className="subtle">{session.rules.name} · {session.players.length} players · {session.courts} court{session.courts > 1 ? "s" : ""}</p></div>
@@ -428,7 +432,7 @@ function PreviousRounds({ session }: { session: Session }) {
   );
 }
 
-function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure, user, saveState, onSignIn }: { session: Session; match: Match; onBack: () => void; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void }) {
+function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure, user, saveState, onSignIn, onHistory }: { session: Session; match: Match; onBack: () => void; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void; onHistory: () => void }) {
   const [editingSetup, setEditingSetup] = useState(false);
   const serving = match.servingTeam === "A" ? match.teamA : match.teamB;
   const teamAHasServed = match.teamA.some((id) => (match.serveCounts[id] ?? 0) > 0);
@@ -437,7 +441,7 @@ function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure, u
   if (!match.setupComplete) {
     return (
       <main className="shell">
-        <Header user={user} saveState={saveState} onSignIn={onSignIn} />
+        <Header user={user} saveState={saveState} onSignIn={onSignIn} onHistory={onHistory} />
         <div className="content scorer setup-only">
           <div className="scorer-meta"><p className="eyebrow">Court {match.court} · Match Setup</p></div>
           <MatchSetup match={match} session={session} onChange={onConfigure} />
@@ -447,7 +451,7 @@ function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure, u
   }
   return (
     <main className="shell">
-      <Header user={user} saveState={saveState} onSignIn={onSignIn} />
+      <Header user={user} saveState={saveState} onSignIn={onSignIn} onHistory={onHistory} />
       <div className="content scorer">
         <div className="scorer-meta">
           <p className="eyebrow">Court {match.court} · {match.rules.name}</p>

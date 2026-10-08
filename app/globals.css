@@ -23,11 +23,15 @@ button { cursor: pointer; }
 .brand img { display: block; width: 190px; height: 86px; object-fit: contain; }
 .status-pill { border: 1px solid rgba(242,239,215,.35); border-radius: 999px; padding: 8px 12px; font-size: 12px; }
 .header-actions { display: flex; align-items: center; gap: 10px; }
-.account-pill { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 7px 6px 13px; border: 1px solid rgba(242,239,215,.25); border-radius: 999px; }
+.account-menu { position: relative; }
+.account-pill { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 6px 7px 6px 13px; border: 1px solid rgba(242,239,215,.25); border-radius: 999px; background: transparent; color: var(--cream); text-align: left; }
 .account-pill span, .account-pill strong, .account-pill small { display: block; }
 .account-pill strong { max-width: 135px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .account-pill small { margin-top: 2px; color: rgba(242,239,215,.65); font-size: 9px; }
-.account-pill button { display: grid; place-items: center; width: 35px; height: 35px; border: 0; border-radius: 50%; background: rgba(242,239,215,.12); color: var(--cream); }
+.account-pill i { display: grid; place-items: center; width: 35px; height: 35px; border-radius: 50%; background: rgba(242,239,215,.12); color: var(--cream); font-style: normal; }
+.account-dropdown { position: absolute; top: calc(100% + 8px); right: 0; z-index: 100; display: grid; min-width: 190px; padding: 6px; border: 1px solid var(--line); border-radius: 14px; background: white; box-shadow: 0 16px 45px rgba(13,48,36,.24); }
+.account-dropdown button { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: var(--ink); font-size: 12px; font-weight: 800; text-align: left; }
+.account-dropdown button:hover { background: var(--paper); }
 .auth-wrap { display: grid; grid-template-columns: 1.1fr .8fr; gap: 42px; align-items: center; width: min(980px, calc(100% - 32px)); min-height: calc(100vh - 122px); margin: 0 auto; padding: 45px 0; }
 .auth-intro h1 { max-width: 600px; }
 .auth-card { max-width: 430px; width: 100%; justify-self: end; }
@@ -40,7 +44,6 @@ button { cursor: pointer; }
 .auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .auth-switch { width: 100%; margin-top: 15px; border: 0; background: transparent; color: var(--forest); font-size: 12px; font-weight: 800; }
 .sign-in-button { white-space: nowrap; }
-.header-history-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .content { width: min(1080px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 70px; }
 .hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 34px; align-items: center; min-height: 65vh; }
 .eyebrow { color: var(--lime-dark); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
