@@ -10,7 +10,7 @@ import { out, point, undo } from "@/lib/scoring";
 import { sessionSchema } from "@/lib/schemas";
 import { createSession } from "@/lib/session";
 import { firebaseAuth, firebaseConfigured } from "@/firebase/client";
-import { archiveSession, loadActiveSession, loadSessionHistory, saveActiveSession, type SessionHistoryItem } from "@/firebase/sessions";
+import { archiveSession, deleteSession, loadActiveSession, loadSessionHistory, saveActiveSession, type SessionHistoryItem } from "@/firebase/sessions";
 import { DEFAULT_RULES, RULE_PRESETS } from "@/lib/game-rules";
 
 const STORAGE_KEY = "rest-dinkers-session-v1";
@@ -121,9 +121,22 @@ export function FairPlayApp() {
     setSession(null);
   }
 
+  async function removeHistorySession(item: SessionHistoryItem) {
+    if (!user || !window.confirm(`Delete "${item.session.name}" from Session History? This cannot be undone.`)) return;
+    try {
+      await deleteSession(user.uid, item.session.id);
+      const next = sessionHistory.filter((entry) => entry.session.id !== item.session.id);
+      setSessionHistory(next);
+      window.localStorage.setItem(`rest-dinkers-history-${user.uid}`, JSON.stringify(next));
+      if (selectedHistory?.session.id === item.session.id) setSelectedHistory(null);
+    } catch {
+      window.alert("This session could not be deleted. Check your connection and try again.");
+    }
+  }
+
   if (!ready || !authReady) return <main className="shell loading">Getting the court ready…</main>;
   const authModal = showAuth ? <AuthScreen onClose={() => setShowAuth(false)} /> : null;
-  if (!session) return <><Setup onCreate={setSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}</>;
+  if (!session) return <><Setup onCreate={setSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onDelete={removeHistorySession} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onDelete={() => removeHistorySession(selectedHistory)} onClose={() => setSelectedHistory(null)} />}</>;
   if (activeMatch) {
     return (
       <>
@@ -144,12 +157,12 @@ export function FairPlayApp() {
       {authModal}
       {!online && <OfflineIndicator />}
       {showRules && <RulesGuide onClose={() => setShowRules(false)} />}
-      {showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onClose={() => setShowHistory(false)} />}
-      {selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}
+      {showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onDelete={removeHistorySession} onClose={() => setShowHistory(false)} />}
+      {selectedHistory && <SessionHistoryDetails item={selectedHistory} onDelete={() => removeHistorySession(selectedHistory)} onClose={() => setSelectedHistory(null)} />}
       </>
     );
   }
-  return <><SessionView session={session} onScore={openMatch} onAdvance={advanceRound} onEnd={endSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => setSelectedHistory(null)} />}</>;
+  return <><SessionView session={session} onScore={openMatch} onAdvance={advanceRound} onEnd={endSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onDelete={removeHistorySession} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onDelete={() => removeHistorySession(selectedHistory)} onClose={() => setSelectedHistory(null)} />}</>;
 }
 
 function OfflineIndicator() {
@@ -304,19 +317,21 @@ function Setup({ onCreate, user, saveState, onSignIn, onHistory, onRules }: { on
   );
 }
 
-function HistoryList({ items, onView }: { items: SessionHistoryItem[]; onView: (item: SessionHistoryItem) => void }) {
-  if (!items.length) return <div className="empty-history"><History size={23} /><div><strong>No Saved Sessions Yet</strong><p>Finish a signed-in session and it will appear here.</p></div></div>;
+function HistoryList({ items, onView, onDelete, filtered = false }: { items: SessionHistoryItem[]; onView: (item: SessionHistoryItem) => void; onDelete: (item: SessionHistoryItem) => void; filtered?: boolean }) {
+  if (!items.length) return <div className="empty-history"><History size={23} /><div><strong>{filtered ? "No Sessions On This Date" : "No Saved Sessions Yet"}</strong><p>{filtered ? "Choose another date or clear the filter." : "Finish a signed-in session and it will appear here."}</p></div></div>;
   return <div className="history-list">{items.map((item) => {
     const playedMatches = item.session.completedRounds.flatMap((round) => round.matches).length;
-    return <button className="history-item" key={item.session.id} onClick={() => onView(item)}><div><strong>{item.session.name}</strong><small>{item.session.rules.name}</small></div><span><Users size={14} /> {item.session.players.length}</span><span><Clock3 size={14} /> {item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved"}</span><em>{playedMatches} Match{playedMatches === 1 ? "" : "es"}</em></button>;
+    return <div className="history-item" key={item.session.id}><button className="history-open" onClick={() => onView(item)}><div><strong>{item.session.name}</strong><small>{item.session.rules.name}</small></div><span><Users size={14} /> {item.session.players.length}</span><span><Clock3 size={14} /> {item.savedAt ? new Date(item.savedAt).toLocaleDateString() : "Saved"}</span><em>{playedMatches} Match{playedMatches === 1 ? "" : "es"}</em></button><button className="history-delete" onClick={() => onDelete(item)} aria-label={`Delete ${item.session.name}`}><Trash2 size={17} /></button></div>;
   })}</div>;
 }
 
-function SessionHistoryLibrary({ items, onView, onClose }: { items: SessionHistoryItem[]; onView: (item: SessionHistoryItem) => void; onClose: () => void }) {
-  return <div className="modal-backdrop rules-backdrop" role="presentation" onMouseDown={onClose}><section className="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-library-title" onMouseDown={(event) => event.stopPropagation()}><header className="rules-header"><div><span className="eyebrow">Your Games</span><h2 id="history-library-title">Session History</h2><p>Completed sessions are saved to your account.</p></div><button className="modal-close" onClick={onClose} aria-label="Close Session History">×</button></header><div className="history-details"><HistoryList items={items} onView={onView} /></div></section></div>;
+function SessionHistoryLibrary({ items, onView, onDelete, onClose }: { items: SessionHistoryItem[]; onView: (item: SessionHistoryItem) => void; onDelete: (item: SessionHistoryItem) => void; onClose: () => void }) {
+  const [date, setDate] = useState("");
+  const filtered = date ? items.filter((item) => item.savedAt > 0 && localDateKey(item.savedAt) === date) : items;
+  return <div className="modal-backdrop rules-backdrop" role="presentation" onMouseDown={onClose}><section className="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-library-title" onMouseDown={(event) => event.stopPropagation()}><header className="rules-header"><div><span className="eyebrow">Your Games</span><h2 id="history-library-title">Session History</h2><p>Completed sessions are saved to your account.</p></div><button className="modal-close" onClick={onClose} aria-label="Close Session History">×</button></header><div className="history-details"><div className="history-filter"><label htmlFor="history-date">Search By Date</label><div><input id="history-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />{date && <button onClick={() => setDate("")}>Clear</button>}</div><small>{filtered.length} Session{filtered.length === 1 ? "" : "s"}</small></div><HistoryList items={filtered} onView={onView} onDelete={onDelete} filtered={Boolean(date)} /></div></section></div>;
 }
 
-function SessionHistoryDetails({ item, onClose }: { item: SessionHistoryItem; onClose: () => void }) {
+function SessionHistoryDetails({ item, onClose, onDelete }: { item: SessionHistoryItem; onClose: () => void; onDelete: () => void }) {
   const session = item.session;
   const rounds = session.completedRounds;
   return (
@@ -324,12 +339,18 @@ function SessionHistoryDetails({ item, onClose }: { item: SessionHistoryItem; on
       <section className="history-modal" role="dialog" aria-modal="true" aria-labelledby="history-title" onMouseDown={(event) => event.stopPropagation()}>
         <header className="rules-header"><div><span className="eyebrow">Saved Session</span><h2 id="history-title">{session.name}</h2><p>{session.rules.name} · {session.players.length} Players · {rounds.length} Round{rounds.length === 1 ? "" : "s"}</p></div><button className="modal-close" onClick={onClose} aria-label="Close Session History">×</button></header>
         <div className="history-details">
+          <button className="delete-session-button" onClick={onDelete}><Trash2 size={15} /> Delete Session</button>
           <div className="history-player-summary">{session.players.map((player) => <div key={player.id}><strong>{player.name}</strong><span>{player.games} Games</span><span>{player.points} Points</span></div>)}</div>
           {rounds.length ? rounds.map((round) => <article className="history-round" key={round.number}><h3>Round {round.number}</h3>{round.matches.map((match) => <div className="history-match" key={match.id}><span>Court {match.court}</span><strong>{names(match.teamA, session)} <b>{match.scoreA}</b></strong><strong>{names(match.teamB, session)} <b>{match.scoreB}</b></strong><em>{matchDuration(match)}</em></div>)}</article>) : <div className="empty-history"><History size={23} /><div><strong>No Completed Rounds</strong><p>This session ended before a round was completed.</p></div></div>}
         </div>
       </section>
     </div>
   );
+}
+
+function localDateKey(timestamp: number) {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
 function RulesGuide({ onClose }: { onClose: () => void }) {

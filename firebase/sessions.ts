@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
 import type { Session } from "@/lib/domain";
 import { firebaseDb } from "./client";
 
@@ -36,4 +36,8 @@ export async function archiveSession(uid: string, session: Session) {
     setDoc(sessionRef(uid, session.id), { session, status: "completed", updatedAt: serverTimestamp() }, { merge: true }),
     setDoc(userRef(uid), { activeSessionId: null, updatedAt: serverTimestamp() }, { merge: true }),
   ]);
+}
+
+export async function deleteSession(uid: string, sessionId: string) {
+  await deleteDoc(sessionRef(uid, sessionId));
 }
