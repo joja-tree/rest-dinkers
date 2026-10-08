@@ -32,6 +32,7 @@ button { cursor: pointer; }
 .account-dropdown { position: absolute; top: calc(100% + 8px); right: 0; z-index: 100; display: grid; min-width: 190px; padding: 6px; border: 1px solid var(--line); border-radius: 14px; background: white; box-shadow: 0 16px 45px rgba(13,48,36,.24); }
 .account-dropdown button { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: var(--ink); font-size: 12px; font-weight: 800; text-align: left; }
 .account-dropdown button:hover { background: var(--paper); }
+.app-version { margin: 3px 5px; padding: 8px 7px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
 .auth-wrap { display: grid; grid-template-columns: 1.1fr .8fr; gap: 42px; align-items: center; width: min(980px, calc(100% - 32px)); min-height: calc(100vh - 122px); margin: 0 auto; padding: 45px 0; }
 .auth-intro h1 { max-width: 600px; }
 .auth-card { max-width: 430px; width: 100%; justify-self: end; }
