@@ -15,6 +15,7 @@ import { DEFAULT_RULES, RULE_PRESETS } from "@/lib/game-rules";
 
 const STORAGE_KEY = "rest-dinkers-session-v1";
 const FORMAT_KEY = "rest-dinkers-game-format";
+type SaveState = "saved" | "device";
 
 export function FairPlayApp() {
   const [session, setSession] = useState<Session | null>(null);
@@ -23,7 +24,7 @@ export function FairPlayApp() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(!firebaseConfigured);
   const [showAuth, setShowAuth] = useState(false);
-  const [saveState, setSaveState] = useState<"saved" | "saving" | "offline">(firebaseConfigured ? "saving" : "offline");
+  const [saveState, setSaveState] = useState<SaveState>("device");
   const [sessionHistory, setSessionHistory] = useState<SessionHistoryItem[]>([]);
   const [selectedHistory, setSelectedHistory] = useState<SessionHistoryItem | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -50,7 +51,7 @@ export function FairPlayApp() {
           const normalized = history.map((item) => ({ ...item, session: normalizeSession(item.session) }));
           setSessionHistory(normalized);
           window.localStorage.setItem(`rest-dinkers-history-${nextUser.uid}`, JSON.stringify(normalized));
-        } catch { setSaveState("offline"); }
+        } catch { setSaveState("device"); }
       } else setSessionHistory([]);
       setAuthReady(true);
     });
@@ -72,16 +73,20 @@ export function FairPlayApp() {
 
   useEffect(() => {
     if (!user || !session) return;
-    if (!online) { setSaveState("offline"); return; }
-    setSaveState("saving");
-    let failureTimeout: number | undefined;
+    setSaveState("device");
+    if (!online) return;
+    let cancelled = false;
+    let cloudTimeout: number | undefined;
     const saveTimeout = window.setTimeout(() => {
-      failureTimeout = window.setTimeout(() => setSaveState("offline"), 8000);
-      saveActiveSession(user.uid, session)
-        .then(() => { if (failureTimeout) window.clearTimeout(failureTimeout); setSaveState("saved"); })
-        .catch(() => { if (failureTimeout) window.clearTimeout(failureTimeout); setSaveState("offline"); });
+      const timeout = new Promise<never>((_, reject) => {
+        cloudTimeout = window.setTimeout(() => reject(new Error("Cloud save timed out.")), 6000);
+      });
+      Promise.race([saveActiveSession(user.uid, session), timeout])
+        .then(() => { if (!cancelled) setSaveState("saved"); })
+        .catch(() => { if (!cancelled) setSaveState("device"); })
+        .finally(() => { if (cloudTimeout) window.clearTimeout(cloudTimeout); });
     }, 350);
-    return () => { window.clearTimeout(saveTimeout); if (failureTimeout) window.clearTimeout(failureTimeout); };
+    return () => { cancelled = true; window.clearTimeout(saveTimeout); if (cloudTimeout) window.clearTimeout(cloudTimeout); };
   }, [session, user, online]);
 
   const activeMatch = session?.current.matches.find((match) => match.id === activeMatchId);
@@ -111,7 +116,7 @@ export function FairPlayApp() {
         const normalized = history.map((item) => ({ ...item, session: normalizeSession(item.session) }));
         setSessionHistory(normalized);
         window.localStorage.setItem(`rest-dinkers-history-${user.uid}`, JSON.stringify(normalized));
-      } catch { setSaveState("offline"); }
+      } catch { setSaveState("device"); }
     }
     setSession(null);
   }
@@ -197,7 +202,7 @@ function AuthScreen({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Header({ trailing, user, saveState, onSignIn, onHistory, onRules }: { trailing?: React.ReactNode; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void; onHistory?: () => void; onRules?: () => void }) {
+function Header({ trailing, user, saveState, onSignIn, onHistory, onRules }: { trailing?: React.ReactNode; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory?: () => void; onRules?: () => void }) {
   const [accountOpen, setAccountOpen] = useState(false);
   return (
     <header className="topbar">
@@ -206,13 +211,13 @@ function Header({ trailing, user, saveState, onSignIn, onHistory, onRules }: { t
       </div>
       <div className="header-actions">
         {trailing}
-        {user ? <div className="account-menu"><button className="account-pill" onClick={() => setAccountOpen(!accountOpen)} aria-expanded={accountOpen}><span><strong>{user.displayName || user.email?.split("@")[0] || "Player"}</strong><small>{saveState === "saving" ? "Saving…" : saveState === "saved" ? "Saved" : "Offline"}</small></span><i><ChevronDown size={17} /></i></button>{accountOpen && <div className="account-dropdown">{onRules && <button onClick={() => { setAccountOpen(false); onRules(); }}><BookOpen size={16} /> Pickleball Rules</button>}{onHistory && <button onClick={() => { setAccountOpen(false); onHistory(); }}><History size={16} /> Session History</button>}<button onClick={() => signOut(firebaseAuth())}><LogOut size={16} /> Sign Out</button></div>}</div> : firebaseConfigured && onSignIn ? <button className="button secondary sign-in-button" onClick={onSignIn}>Sign In</button> : !trailing && <span className="status-pill">MVP · Local Play</span>}
+        {user ? <div className="account-menu"><button className="account-pill" onClick={() => setAccountOpen(!accountOpen)} aria-expanded={accountOpen}><span><strong>{user.displayName || user.email?.split("@")[0] || "Player"}</strong><small>{saveState === "saved" ? "Saved" : "Saved On Device"}</small></span><i><ChevronDown size={17} /></i></button>{accountOpen && <div className="account-dropdown">{onRules && <button onClick={() => { setAccountOpen(false); onRules(); }}><BookOpen size={16} /> Pickleball Rules</button>}{onHistory && <button onClick={() => { setAccountOpen(false); onHistory(); }}><History size={16} /> Session History</button>}<button onClick={() => signOut(firebaseAuth())}><LogOut size={16} /> Sign Out</button></div>}</div> : firebaseConfigured && onSignIn ? <button className="button secondary sign-in-button" onClick={onSignIn}>Sign In</button> : !trailing && <span className="status-pill">MVP · Local Play</span>}
       </div>
     </header>
   );
 }
 
-function Setup({ onCreate, user, saveState, onSignIn, onHistory, onRules }: { onCreate: (session: Session) => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
+function Setup({ onCreate, user, saveState, onSignIn, onHistory, onRules }: { onCreate: (session: Session) => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
   const [name, setName] = useState("");
   const [courts, setCourts] = useState(1);
   const [players, setPlayers] = useState(["Alex", "Bea", "Cal", "Dani"]);
@@ -357,7 +362,7 @@ function RulesGuide({ onClose }: { onClose: () => void }) {
   );
 }
 
-function SessionView({ session, onScore, onAdvance, onEnd, user, saveState, onSignIn, onHistory, onRules }: { session: Session; onScore: (id: string) => void; onAdvance: () => void; onEnd: () => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
+function SessionView({ session, onScore, onAdvance, onEnd, user, saveState, onSignIn, onHistory, onRules }: { session: Session; onScore: (id: string) => void; onAdvance: () => void; onEnd: () => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
   const complete = session.current.matches.every((match) => Boolean(match.winner));
   return (
     <main className="shell">
@@ -451,7 +456,7 @@ function PreviousRounds({ session }: { session: Session }) {
   );
 }
 
-function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure, user, saveState, onSignIn, onHistory, onRules }: { session: Session; match: Match; onBack: () => void; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void; user?: User | null; saveState?: "saved" | "saving" | "offline"; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
+function Scorer({ session, match, onBack, onPoint, onOut, onUndo, onConfigure, user, saveState, onSignIn, onHistory, onRules }: { session: Session; match: Match; onBack: () => void; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
   const [editingSetup, setEditingSetup] = useState(false);
   const serving = match.servingTeam === "A" ? match.teamA : match.teamB;
   const teamAHasServed = match.teamA.some((id) => (match.serveCounts[id] ?? 0) > 0);
