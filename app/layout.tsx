@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ServiceWorkerRegistration } from "./service-worker-registration";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "Rest Dinkers",
@@ -22,7 +23,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>{children}<ServiceWorkerRegistration /></body>
+      <body>{children}<ServiceWorkerRegistration /><Analytics /></body>
     </html>
   );
 }
