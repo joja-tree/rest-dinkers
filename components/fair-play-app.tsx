@@ -247,7 +247,7 @@ function Header({ trailing, user, saveState, onSignIn, onHistory, onRules }: { t
 function Setup({ onCreate, user, saveState, onSignIn, onHistory, onRules }: { onCreate: (session: Session) => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
   const [name, setName] = useState("");
   const [courts, setCourts] = useState(1);
-  const [players, setPlayers] = useState(["Alex", "Bea", "Cal", "Dani"]);
+  const [players, setPlayers] = useState(["Jissah", "Red", "Irra", "Yod"]);
   const [error, setError] = useState("");
   const [format, setFormat] = useState<GameFormat>("rest-dinkers-doubles");
 
