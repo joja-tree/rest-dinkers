@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, serverTimestamp, setDoc, Timestamp } from "firebase/firestore";
 import type { Session } from "@/lib/domain";
 import { firebaseDb } from "./client";
 
@@ -9,10 +9,18 @@ export type SessionHistoryItem = { session: Session; savedAt: number; documentId
 
 export async function loadSessionHistory(uid: string): Promise<SessionHistoryItem[]> {
   const saved = await getDocs(collection(firebaseDb(), "users", uid, "sessions"));
-  return saved.docs
+  return historyItems(saved.docs);
+}
+
+function historyItems(saved: Array<{ id: string; data: () => Record<string, unknown> }>): SessionHistoryItem[] {
+  return saved
     .filter((item) => item.data().status === "completed" && item.data().session)
     .map((item) => { const data = item.data(); return { session: data.session as Session, savedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toMillis() : 0, documentId: item.id }; })
     .sort((a, b) => b.savedAt - a.savedAt);
+}
+
+export function subscribeSessionHistory(uid: string, onChange: (items: SessionHistoryItem[]) => void, onError: () => void) {
+  return onSnapshot(collection(firebaseDb(), "users", uid, "sessions"), (snapshot) => onChange(historyItems(snapshot.docs)), onError);
 }
 
 export async function loadActiveSession(uid: string): Promise<Session | null> {

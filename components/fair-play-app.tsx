@@ -10,7 +10,7 @@ import { out, point, undo } from "@/lib/scoring";
 import { sessionSchema } from "@/lib/schemas";
 import { createSession } from "@/lib/session";
 import { firebaseAuth, firebaseConfigured } from "@/firebase/client";
-import { archiveSession, deleteSession, loadActiveSession, loadSessionHistory, saveActiveSession, type SessionHistoryItem } from "@/firebase/sessions";
+import { archiveSession, deleteSession, loadActiveSession, loadSessionHistory, saveActiveSession, subscribeSessionHistory, type SessionHistoryItem } from "@/firebase/sessions";
 import { DEFAULT_RULES, RULE_PRESETS } from "@/lib/game-rules";
 
 const STORAGE_KEY = "rest-dinkers-session-v1";
@@ -70,7 +70,7 @@ export function FairPlayApp() {
           const normalized = history.map((item) => ({ ...item, session: normalizeSession(item.session) }));
           const pendingDeletes = new Set(readLocal<string[]>(pendingDeleteKey(nextUser.uid), []));
           const cloudIds = new Set(normalized.map((item) => item.documentId ?? item.session.id));
-          const merged = [...normalized.filter((item) => !pendingDeletes.has(item.documentId ?? item.session.id)), ...cachedHistory.filter((item) => !cloudIds.has(item.documentId ?? item.session.id) && !pendingDeletes.has(item.documentId ?? item.session.id))].sort((a, b) => b.savedAt - a.savedAt);
+          const merged = [...normalized.filter((item) => !pendingDeletes.has(item.documentId ?? item.session.id)), ...cachedHistory.filter((item) => (item as PendingHistoryItem).pendingSync && !cloudIds.has(item.documentId ?? item.session.id) && !pendingDeletes.has(item.documentId ?? item.session.id))].sort((a, b) => b.savedAt - a.savedAt);
           setSessionHistory(merged);
           writeLocal(historyKey(nextUser.uid), merged);
         } catch { setSaveState("device"); }
@@ -78,6 +78,19 @@ export function FairPlayApp() {
       setAuthReady(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (!user || !online) return;
+    return subscribeSessionHistory(user.uid, (cloudHistory) => {
+      const pending = readLocal<PendingHistoryItem[]>(pendingHistoryKey(user.uid), []);
+      const pendingDeletes = new Set(readLocal<string[]>(pendingDeleteKey(user.uid), []));
+      const normalized = cloudHistory.map((item) => ({ ...item, session: normalizeSession(item.session) }));
+      const cloudIds = new Set(normalized.map((item) => item.documentId ?? item.session.id));
+      const merged = [...normalized.filter((item) => !pendingDeletes.has(item.documentId ?? item.session.id)), ...pending.filter((item) => !cloudIds.has(item.documentId ?? item.session.id) && !pendingDeletes.has(item.documentId ?? item.session.id))].sort((a, b) => b.savedAt - a.savedAt);
+      setSessionHistory(merged);
+      writeLocal(historyKey(user.uid), merged);
+    }, () => setSaveState("device"));
+  }, [online, user]);
 
   useEffect(() => {
     if (!online || !user) return;
