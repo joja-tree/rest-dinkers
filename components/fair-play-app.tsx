@@ -585,11 +585,11 @@ function MatchCard({ match, session, onScore, onShare }: { match: Match; session
         <><div className="current-result" aria-label={`Final score ${match.scoreA} to ${match.scoreB}`}>
           <div className={match.winner === "A" ? "winner" : ""}><span>Team A</span><strong>{names(match.teamA, session)}</strong><b>{match.scoreA}</b></div>
           <div className={match.winner === "B" ? "winner" : ""}><span>Team B</span><strong>{names(match.teamB, session)}</strong><b>{match.scoreB}</b></div>
-        </div>{onShare && match.shareId && <div className="match-actions review-actions"><button className="button secondary share-scorecard-button" onClick={() => onShare(match)}><Share2 size={17} /> Review Shared Results</button></div>}</>
+        </div>{onShare && match.shareId && <div className="match-actions review-actions"><button className="button secondary share-scorecard-button" onClick={() => onShare(match)} aria-label="Review Shared Results" title="Review Shared Results"><Share2 size={18} /></button></div>}</>
       ) : (
         <>
           <div className="teams"><div className="team">{names(match.teamA, session)}</div><span className="versus">VS</span><div className="team">{names(match.teamB, session)}</div></div>
-          <div className="match-actions"><button className="button primary score-button" onClick={() => onScore(match.id)}>Open Scorecard</button>{onShare && <button className="button secondary share-scorecard-button" onClick={() => onShare(match)}><Share2 size={17} /> Share Scorecard</button>}</div>
+          <div className="match-actions"><button className="button primary score-button" onClick={() => onScore(match.id)}>Open Scorecard</button>{onShare && <button className="button secondary share-scorecard-button" onClick={() => onShare(match)} aria-label="Share Scorecard" title="Share Scorecard"><Share2 size={18} /></button>}</div>
         </>
       )}
     </div>
