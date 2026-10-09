@@ -17,6 +17,19 @@ const STORAGE_KEY = "rest-dinkers-session-v1";
 const FORMAT_KEY = "rest-dinkers-game-format";
 const BUILD_VERSION = process.env.NEXT_PUBLIC_BUILD_VERSION ?? "local";
 type SaveState = "saved" | "device";
+type PendingHistoryItem = SessionHistoryItem & { pendingSync?: boolean };
+
+const historyKey = (uid: string) => `rest-dinkers-history-${uid}`;
+const pendingHistoryKey = (uid: string) => `rest-dinkers-history-pending-${uid}`;
+const pendingDeleteKey = (uid: string) => `rest-dinkers-history-deletes-${uid}`;
+
+function readLocal<T>(key: string, fallback: T): T {
+  try { return JSON.parse(window.localStorage.getItem(key) ?? "") as T; } catch { return fallback; }
+}
+
+function writeLocal(key: string, value: unknown) {
+  window.localStorage.setItem(key, JSON.stringify(value));
+}
 
 export function FairPlayApp() {
   const [session, setSession] = useState<Session | null>(null);
@@ -42,28 +55,54 @@ export function FairPlayApp() {
       if (nextUser) setShowAuth(false);
       setActiveMatchId(null);
       if (nextUser) {
-        const cached = window.localStorage.getItem(`rest-dinkers-history-${nextUser.uid}`);
+        const cached = window.localStorage.getItem(historyKey(nextUser.uid));
         let cachedHistory: SessionHistoryItem[] = [];
         if (cached) {
           try {
             const history = JSON.parse(cached) as SessionHistoryItem[];
             cachedHistory = history.map((item) => ({ ...item, session: normalizeSession(item.session) }));
             setSessionHistory(cachedHistory);
-          } catch { window.localStorage.removeItem(`rest-dinkers-history-${nextUser.uid}`); }
+          } catch { window.localStorage.removeItem(historyKey(nextUser.uid)); }
         }
         try {
           const [cloudSession, history] = await Promise.all([loadActiveSession(nextUser.uid), loadSessionHistory(nextUser.uid)]);
           if (cloudSession) setSession(normalizeSession(cloudSession));
           const normalized = history.map((item) => ({ ...item, session: normalizeSession(item.session) }));
+          const pendingDeletes = new Set(readLocal<string[]>(pendingDeleteKey(nextUser.uid), []));
           const cloudIds = new Set(normalized.map((item) => item.documentId ?? item.session.id));
-          const merged = [...normalized, ...cachedHistory.filter((item) => !cloudIds.has(item.documentId ?? item.session.id))].sort((a, b) => b.savedAt - a.savedAt);
+          const merged = [...normalized.filter((item) => !pendingDeletes.has(item.documentId ?? item.session.id)), ...cachedHistory.filter((item) => !cloudIds.has(item.documentId ?? item.session.id) && !pendingDeletes.has(item.documentId ?? item.session.id))].sort((a, b) => b.savedAt - a.savedAt);
           setSessionHistory(merged);
-          window.localStorage.setItem(`rest-dinkers-history-${nextUser.uid}`, JSON.stringify(merged));
+          writeLocal(historyKey(nextUser.uid), merged);
         } catch { setSaveState("device"); }
       } else setSessionHistory([]);
       setAuthReady(true);
     });
   }, []);
+
+  useEffect(() => {
+    if (!online || !user) return;
+    const uid = user.uid;
+    const pendingArchives = readLocal<PendingHistoryItem[]>(pendingHistoryKey(uid), []);
+    const pendingDeletes = readLocal<string[]>(pendingDeleteKey(uid), []);
+    for (const item of pendingArchives) {
+      const documentId = item.documentId ?? `${item.session.id}-completed-${item.savedAt}`;
+      archiveSession(uid, item.session, documentId).then(() => {
+        const remaining = readLocal<PendingHistoryItem[]>(pendingHistoryKey(uid), []).filter((entry) => (entry.documentId ?? entry.session.id) !== documentId);
+        writeLocal(pendingHistoryKey(uid), remaining);
+        setSessionHistory((current) => {
+          const next = current.map((entry) => (entry.documentId ?? entry.session.id) === documentId ? { ...entry, pendingSync: false } : entry);
+          writeLocal(historyKey(uid), next);
+          return next;
+        });
+      }).catch(() => undefined);
+    }
+    for (const documentId of pendingDeletes) {
+      deleteSession(uid, documentId).then(() => {
+        const remaining = readLocal<string[]>(pendingDeleteKey(uid), []).filter((id) => id !== documentId);
+        writeLocal(pendingDeleteKey(uid), remaining);
+      }).catch(() => undefined);
+    }
+  }, [online, user]);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -121,11 +160,17 @@ export function FairPlayApp() {
       const archivedSession = prepareSessionForHistory(session);
       const savedAt = Date.now();
       const documentId = `${session.id}-completed-${savedAt}`;
-      const next = [{ session: archivedSession, savedAt, documentId }, ...sessionHistory];
+      const item: PendingHistoryItem = { session: archivedSession, savedAt, documentId, pendingSync: true };
+      const next = [item, ...sessionHistory];
       setSessionHistory(next);
-      window.localStorage.setItem(`rest-dinkers-history-${user.uid}`, JSON.stringify(next));
+      writeLocal(historyKey(user.uid), next);
+      const queued = readLocal<PendingHistoryItem[]>(pendingHistoryKey(user.uid), []);
+      writeLocal(pendingHistoryKey(user.uid), [item, ...queued.filter((entry) => (entry.documentId ?? entry.session.id) !== documentId)]);
       const timeout = new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("Archive timed out.")), 6000));
-      Promise.race([archiveSession(user.uid, archivedSession, documentId), timeout]).catch(() => setSaveState("device"));
+      Promise.race([archiveSession(user.uid, archivedSession, documentId), timeout]).then(() => {
+        writeLocal(pendingHistoryKey(user.uid), readLocal<PendingHistoryItem[]>(pendingHistoryKey(user.uid), []).filter((entry) => (entry.documentId ?? entry.session.id) !== documentId));
+        setSessionHistory((current) => { const synced = current.map((entry) => (entry.documentId ?? entry.session.id) === documentId ? { ...entry, pendingSync: false } : entry); writeLocal(historyKey(user.uid), synced); return synced; });
+      }).catch(() => setSaveState("device"));
     }
     setSession(null);
   }
@@ -139,16 +184,18 @@ export function FairPlayApp() {
     if (!user || !pendingDelete) return;
     setDeleting(true);
     setDeleteError("");
-    try {
-      await deleteSession(user.uid, pendingDelete.documentId ?? pendingDelete.session.id);
-      const next = sessionHistory.filter((entry) => (entry.documentId ?? entry.session.id) !== (pendingDelete.documentId ?? pendingDelete.session.id));
-      setSessionHistory(next);
-      window.localStorage.setItem(`rest-dinkers-history-${user.uid}`, JSON.stringify(next));
-      if (selectedHistory?.session.id === pendingDelete.session.id) setSelectedHistory(null);
-      setPendingDelete(null);
-    } catch {
-      setDeleteError("This session could not be deleted. Check your connection and try again.");
-    } finally { setDeleting(false); }
+    const uid = user.uid;
+    const documentId = pendingDelete.documentId ?? pendingDelete.session.id;
+    const next = sessionHistory.filter((entry) => (entry.documentId ?? entry.session.id) !== documentId);
+    setSessionHistory(next);
+    writeLocal(historyKey(uid), next);
+    writeLocal(pendingHistoryKey(uid), readLocal<PendingHistoryItem[]>(pendingHistoryKey(uid), []).filter((entry) => (entry.documentId ?? entry.session.id) !== documentId));
+    const queuedDeletes = readLocal<string[]>(pendingDeleteKey(uid), []);
+    writeLocal(pendingDeleteKey(uid), [...new Set([...queuedDeletes, documentId])]);
+    if (selectedHistory?.session.id === pendingDelete.session.id) setSelectedHistory(null);
+    setPendingDelete(null);
+    setDeleting(false);
+    deleteSession(uid, documentId).then(() => writeLocal(pendingDeleteKey(uid), readLocal<string[]>(pendingDeleteKey(uid), []).filter((id) => id !== documentId))).catch(() => undefined);
   }
 
   if (!ready || !authReady) return <main className="shell loading">Getting the court ready…</main>;
