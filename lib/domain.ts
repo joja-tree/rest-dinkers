@@ -42,6 +42,7 @@ export type Match = {
   startedAt: number | null;
   endedAt: number | null;
   rules: GameRules;
+  shareId?: string;
 };
 
 export type ScoreSnapshot = Pick<Match, "scoreA" | "scoreB" | "servingTeam" | "server" | "winner" | "pointScorers" | "serveCounts" | "faultCounts" | "endedAt">;

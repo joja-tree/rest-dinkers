@@ -213,12 +213,12 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .personal-stat:nth-child(-n+3) strong { margin-top: 10px; font-size: 31px; }
 .personal-stat:first-child { grid-column: span 2; background: var(--lime); border-color: var(--lime); color: var(--forest-2); }
 .personal-stat:first-child span { color: rgba(13,48,36,.68); }
-.scorer { max-width: 720px; margin: 0 auto; }
-.scorer.setup-only { max-width: 780px; }
-.scorer-meta { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
-.scorer-meta p { margin: 0; }
-.scorer-undo { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 102px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: white; color: var(--muted); font-size: 13px; font-weight: 800; }
-.scorer-undo:disabled { cursor: not-allowed; opacity: .42; }
+.scorecard { max-width: 720px; margin: 0 auto; }
+.scorecard.setup-only { max-width: 780px; }
+.scorecard-meta { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
+.scorecard-meta p { margin: 0; }
+.scorecard-undo { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 102px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: white; color: var(--muted); font-size: 13px; font-weight: 800; }
+.scorecard-undo:disabled { cursor: not-allowed; opacity: .42; }
 .match-setup { display: grid; gap: 15px; margin-bottom: 15px; padding: 20px; border: 1px solid var(--line); border-radius: 22px; background: white; box-shadow: 0 16px 50px rgba(21,63,48,.07); }
 .setup-heading span, .starting-team-control > span, .service-order-grid > div > span { display: block; color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
 .setup-heading small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
@@ -298,7 +298,59 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .loading { display: grid; place-items: center; color: var(--forest); }
 .offline-indicator { position: fixed; right: 14px; bottom: 14px; z-index: 120; display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 14px; border: 1px solid rgba(242,239,215,.22); border-radius: 999px; background: var(--forest-2); color: var(--cream); box-shadow: 0 10px 35px rgba(13,48,36,.25); font-size: 10px; font-weight: 900; letter-spacing: .02em; }
 .offline-indicator span { width: 8px; height: 8px; border-radius: 50%; background: #e49b41; box-shadow: 0 0 0 3px rgba(228,155,65,.18); }
+.match-actions { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin: 0 16px 16px; }
+.match-actions .button.primary.score-button { width: 100%; margin: 0; }
+.share-scorecard-button { gap: 7px; white-space: nowrap; }
+.share-backdrop { z-index: 180; }
+.share-scorecard-modal { width: min(760px, calc(100% - 28px)); max-height: calc(100vh - 36px); overflow: auto; border-radius: 28px; background: #fff; box-shadow: 0 28px 90px rgba(7,35,26,.3); }
+.share-scorecard-modal > header { display: flex; justify-content: space-between; gap: 20px; padding: 28px 30px; border-radius: 28px 28px 0 0; background: var(--forest); color: var(--cream); }
+.share-scorecard-modal header h2 { margin: 5px 0; font-size: 36px; }
+.share-scorecard-modal header p { max-width: 540px; margin: 0; color: rgba(242,239,215,.72); }
+.share-scorecard-modal > header .modal-close { position: static; flex: 0 0 auto; color: var(--cream); }
+.share-link-box { display: grid; grid-template-columns: 1fr auto auto; gap: 9px; margin: 24px 30px; padding: 12px; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); }
+.share-link-box > div { min-width: 0; padding: 3px 7px; }
+.share-link-box small, .share-link-box span { display: block; }
+.share-link-box small { margin-bottom: 4px; color: var(--muted); font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.share-link-box span { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.share-link-box button, .submission-list button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--forest); color: var(--cream); font-weight: 900; }
+.share-link-box .share-native { background: var(--lime); color: var(--forest); }
+.submission-heading { display: flex; align-items: center; justify-content: space-between; margin: 0 30px 14px; }
+.submission-heading h3 { margin: 0; font-size: 22px; }
+.submission-heading p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+.submission-heading > span { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: var(--lime); font-weight: 900; }
+.submission-list { display: grid; gap: 10px; padding: 0 30px 30px; }
+.submission-list article { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 18px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; }
+.submission-list article strong, .submission-list article small { display: block; }
+.submission-list article small { margin-top: 2px; color: var(--muted); }
+.submitted-score { display: flex; gap: 14px; }
+.submitted-score span { color: var(--muted); font-size: 12px; font-weight: 800; }
+.submitted-score b { margin-left: 5px; color: var(--forest); font-size: 20px; }
+.submission-list button { min-height: 42px; }
+.no-submissions, .share-loading { margin: 0 30px 30px; padding: 28px; border: 1px dashed var(--line); border-radius: 18px; text-align: center; color: var(--muted); }
+.no-submissions svg, .no-submissions strong { display: block; margin: 0 auto 7px; color: var(--forest); }
+.no-submissions p { margin: 0; }
+.shared-scorekeeper { width: min(100% - 32px, 720px); margin: -8px auto 32px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: #fff; box-shadow: var(--shadow); }
+.shared-scorekeeper label { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; }
+.shared-scorekeeper p { margin: 8px 2px 0; color: var(--muted); font-size: 12px; }
+.shared-message section { width: min(620px, calc(100% - 28px)); margin: 70px auto; text-align: center; }
+.shared-message h1 { margin: 10px 0; }
+.shared-message p { color: var(--muted); }
+.shared-link-icon, .shared-success-icon { display: grid; width: 60px; height: 60px; margin: 0 auto 18px; place-items: center; border-radius: 50%; background: var(--paper); color: var(--forest); }
+.shared-success-icon { background: var(--lime); }
 @media (max-width: 760px) {
+  .match-actions { grid-template-columns: 1fr; }
+  .share-scorecard-modal { border-radius: 21px; }
+  .share-scorecard-modal > header { padding: 22px 18px; border-radius: 21px 21px 0 0; }
+  .share-scorecard-modal header h2 { font-size: 29px; }
+  .share-link-box { grid-template-columns: 1fr 1fr; margin: 16px; }
+  .share-link-box > div { grid-column: 1 / -1; }
+  .share-link-box button { min-height: 44px; }
+  .submission-heading { margin: 22px 18px 12px; }
+  .submission-list { padding: 0 16px 18px; }
+  .submission-list article { grid-template-columns: 1fr auto; gap: 12px; }
+  .submission-list article > button { grid-column: 1 / -1; min-height: 44px; }
+  .submitted-score { flex-direction: column; gap: 2px; }
+  .no-submissions, .share-loading { margin: 0 16px 18px; }
   .hero, .round-grid { grid-template-columns: 1fr; }
   .auth-wrap { grid-template-columns: 1fr; gap: 22px; min-height: auto; padding-top: 28px; }
   .auth-intro h1 { font-size: 52px; }

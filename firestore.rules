@@ -7,6 +7,32 @@ service cloud.firestore {
       match /sessions/{sessionId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+
+      match /scorecards/{scorecardId} {
+        allow get: if true;
+        allow list, create, update, delete: if request.auth != null && request.auth.uid == userId;
+
+        match /submissions/{submissionId} {
+          allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+          allow create: if get(/databases/$(database)/documents/users/$(userId)/scorecards/$(scorecardId)).data.status == "open"
+            && request.resource.data.keys().hasOnly(["submitterName", "match", "submittedAt"])
+            && request.resource.data.submitterName is string
+            && request.resource.data.submitterName.size() > 0
+            && request.resource.data.submitterName.size() <= 50
+            && request.resource.data.match is map
+            && request.resource.data.match.keys().hasOnly(["id", "court", "teamA", "teamB", "scoreA", "scoreB", "servingTeam", "server", "winner", "history", "pointScorers", "serveCounts", "faultCounts", "setupComplete", "startedAt", "endedAt", "rules", "shareId"])
+            && request.resource.data.match.scoreA is int
+            && request.resource.data.match.scoreA >= 0
+            && request.resource.data.match.scoreA <= 99
+            && request.resource.data.match.scoreB is int
+            && request.resource.data.match.scoreB >= 0
+            && request.resource.data.match.scoreB <= 99
+            && request.resource.data.match.winner in ["A", "B"]
+            && request.resource.data.match.history is list
+            && request.resource.data.match.history.size() <= 500
+            && request.resource.data.submittedAt == request.time;
+        }
+      }
     }
   }
 }
