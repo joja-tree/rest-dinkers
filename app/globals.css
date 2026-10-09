@@ -30,6 +30,10 @@ button { cursor: pointer; }
 .account-pill small { margin-top: 2px; color: rgba(242,239,215,.65); font-size: 9px; }
 .account-pill i { display: grid; place-items: center; width: 35px; height: 35px; border-radius: 50%; background: rgba(242,239,215,.12); color: var(--cream); font-style: normal; }
 .account-dropdown { position: absolute; top: calc(100% + 8px); right: 0; z-index: 100; display: grid; min-width: 190px; padding: 6px; border: 1px solid var(--line); border-radius: 14px; background: white; box-shadow: 0 16px 45px rgba(13,48,36,.24); }
+.account-dropdown-profile { display: none; padding: 9px 10px 10px; border-bottom: 1px solid var(--line); }
+.account-dropdown-profile strong, .account-dropdown-profile small { display: block; }
+.account-dropdown-profile strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.account-dropdown-profile small { margin-top: 3px; color: var(--muted); font-size: 9px; }
 .account-dropdown button { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 0 11px; border: 0; border-radius: 9px; background: transparent; color: var(--ink); font-size: 12px; font-weight: 800; text-align: left; }
 .account-dropdown button:hover { background: var(--paper); }
 .app-version { margin: 3px 5px; padding: 8px 7px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
@@ -340,6 +344,15 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .shared-link-icon, .shared-success-icon { display: grid; width: 60px; height: 60px; margin: 0 auto 18px; place-items: center; border-radius: 50%; background: var(--paper); color: var(--forest); }
 .shared-success-icon { background: var(--lime); }
 @media (max-width: 760px) {
+  .topbar { flex-wrap: nowrap; gap: 8px; padding: 9px 11px; }
+  .brand { flex: 0 0 auto; }
+  .brand img { width: 112px; height: 51px; }
+  .header-actions { min-width: 0; gap: 6px; margin-left: auto; }
+  .topbar .header-actions > .button { min-height: 39px; padding-inline: 10px; border-radius: 13px; font-size: 10px; white-space: nowrap; }
+  .account-pill { width: 41px; min-width: 41px; min-height: 41px; padding: 3px; }
+  .account-pill > span { display: none; }
+  .account-pill i { width: 33px; height: 33px; }
+  .account-dropdown-profile { display: block; }
   .shared-completion { padding-top: 10px; }
   .shared-completion .scorecard-meta { margin-bottom: 6px; }
   .shared-completion .scorecard-undo { min-height: 34px; padding-inline: 11px; }
@@ -403,12 +416,11 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
   .session-header { align-items: flex-start; flex-direction: column; }
   .status-pill { display: none; }
   .header-actions { margin-left: auto; }
-  .topbar { flex-wrap: wrap; }
-  .topbar .header-actions { gap: 7px; }
-  .topbar .header-actions > .button { min-height: 40px; padding-inline: 12px; font-size: 11px; }
-  .account-pill { min-height: 43px; padding-left: 10px; }
-  .account-pill strong { max-width: 86px; }
-  .brand img { width: 165px; height: 74px; }
+  .topbar { flex-wrap: nowrap; }
+  .topbar .header-actions { gap: 6px; }
+  .topbar .header-actions > .button { min-height: 39px; padding-inline: 10px; font-size: 10px; }
+  .account-pill { width: 41px; min-width: 41px; min-height: 41px; padding: 3px; }
+  .brand img { width: 112px; height: 51px; }
   .content { width: min(100% - 22px, 1080px); padding-top: 24px; }
   .card { padding: 18px; border-radius: 20px; }
   .scoreboard { padding: 20px 14px; border-radius: 22px; }
