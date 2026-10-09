@@ -276,7 +276,7 @@ function SharedScorecardPage({ shareKey }: { shareKey: string }) {
   const guestSession = { id: shared.sessionId, name: shared.sessionName, courts: 1, players, current: { number: shared.round, matches: [match], resting: [] }, next: { number: shared.round + 1, matches: [], resting: [] }, completedRounds: [], partnerCounts: {}, opponentCounts: {}, rules: match.rules } satisfies Session;
   async function submit() { if (!match?.winner || !scorekeeper.trim()) return; setState("submitting"); try { await submitScorecard(ownerId, shareId, scorekeeper, match); setState("submitted"); } catch { setState("ready"); setMessage("The result could not be submitted. Check your connection and try again."); } }
   const scorekeeperEntry = <div className="shared-scorekeeper"><label htmlFor="scorekeeper-name">Scorekeeper</label><input id="scorekeeper-name" className="input" placeholder="Enter Your Name" maxLength={50} value={scorekeeper} onChange={(event) => setScorekeeper(event.target.value)} /><p>{message || "Your result stays separate until the organizer accepts it."}</p></div>;
-  return <Scorecard session={guestSession} match={match} onBack={submit} finishLabel={state === "submitting" ? "Submitting…" : "Submit Result"} finishDisabled={!scorekeeper.trim() || state === "submitting"} completionContent={scorekeeperEntry} onPoint={() => setMatch(point(match))} onOut={() => setMatch(out(match))} onUndo={() => setMatch(undo(match))} onConfigure={setMatch} onHistory={() => undefined} onRules={() => undefined} />;
+  return <Scorecard session={guestSession} match={match} onBack={submit} finishLabel={state === "submitting" ? "Submitting…" : "Submit Result"} finishDisabled={!scorekeeper.trim() || state === "submitting"} completionContent={scorekeeperEntry} compactCompletion onPoint={() => setMatch(point(match))} onOut={() => setMatch(out(match))} onUndo={() => setMatch(undo(match))} onConfigure={setMatch} onHistory={() => undefined} onRules={() => undefined} />;
 }
 
 function SharedScorecardMessage({ title, message, success = false }: { title: string; message: string; success?: boolean }) {
@@ -639,7 +639,7 @@ function PreviousRounds({ session }: { session: Session }) {
   );
 }
 
-function Scorecard({ session, match, onBack, finishLabel = "Finish Match", finishDisabled = false, completionContent, onPoint, onOut, onUndo, onConfigure, user, saveState, onSignIn, onHistory, onRules }: { session: Session; match: Match; onBack: () => void; finishLabel?: string; finishDisabled?: boolean; completionContent?: React.ReactNode; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
+function Scorecard({ session, match, onBack, finishLabel = "Finish Match", finishDisabled = false, completionContent, compactCompletion = false, onPoint, onOut, onUndo, onConfigure, user, saveState, onSignIn, onHistory, onRules }: { session: Session; match: Match; onBack: () => void; finishLabel?: string; finishDisabled?: boolean; completionContent?: React.ReactNode; compactCompletion?: boolean; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
   const [editingSetup, setEditingSetup] = useState(false);
   const serving = match.servingTeam === "A" ? match.teamA : match.teamB;
   const teamAHasServed = match.teamA.some((id) => (match.serveCounts[id] ?? 0) > 0);
@@ -659,7 +659,7 @@ function Scorecard({ session, match, onBack, finishLabel = "Finish Match", finis
   return (
     <main className="shell">
       <Header user={user} saveState={saveState} onSignIn={onSignIn} onHistory={onHistory} onRules={onRules} />
-      <div className="content scorecard">
+      <div className={`content scorecard ${compactCompletion && match.winner ? "shared-completion" : ""}`}>
         <div className="scorecard-meta">
           <p className="eyebrow">Court {match.court} · {match.rules.name}</p>
           <button className="scorecard-undo" disabled={!match.history.length} onClick={onUndo}><RotateCcw size={15} /> Undo</button>

@@ -341,6 +341,27 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .shared-link-icon, .shared-success-icon { display: grid; width: 60px; height: 60px; margin: 0 auto 18px; place-items: center; border-radius: 50%; background: var(--paper); color: var(--forest); }
 .shared-success-icon { background: var(--lime); }
 @media (max-width: 760px) {
+  .shared-completion { padding-top: 10px; }
+  .shared-completion .scorecard-meta { margin-bottom: 6px; }
+  .shared-completion .scorecard-undo { min-height: 34px; padding-inline: 11px; }
+  .shared-completion .match-setup-summary { display: none; }
+  .shared-completion .scoreboard { padding: 12px; border-radius: 18px; }
+  .shared-completion .scores { margin: 3px 0 7px; }
+  .shared-completion .scores strong { font-size: 50px; }
+  .shared-completion .scores .server { font-size: 30px; }
+  .shared-completion .scores .server.service-side { font-size: 16px; }
+  .shared-completion .scoreboard .round-timer { min-width: 102px; margin-bottom: 7px; padding: 4px 12px 5px; }
+  .shared-completion .scoreboard .round-timer strong { font-size: 17px; }
+  .shared-completion .serving { display: none; }
+  .shared-completion .complete { margin-top: 5px; font-size: 13px; }
+  .shared-completion .controls { margin-top: 8px; }
+  .shared-completion .completion-controls { gap: 8px; }
+  .shared-completion .shared-scorekeeper { padding: 11px 12px; border-radius: 14px; }
+  .shared-completion .shared-scorekeeper label { margin-bottom: 4px; font-size: 10px; }
+  .shared-completion .shared-scorekeeper .input { min-height: 43px; }
+  .shared-completion .shared-scorekeeper p { margin-top: 4px; font-size: 10px; }
+  .shared-completion .finish-match { min-height: 58px; border-radius: 16px; font-size: 18px; }
+  .shared-completion .match-statistics { display: none; }
   .match-actions { grid-template-columns: 1fr auto; }
   .share-scorecard-modal { border-radius: 21px; }
   .share-scorecard-modal > header { padding: 22px 18px; border-radius: 21px 21px 0 0; }
