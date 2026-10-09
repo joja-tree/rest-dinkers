@@ -331,7 +331,8 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .no-submissions, .share-loading { margin: 0 30px 30px; padding: 28px; border: 1px dashed var(--line); border-radius: 18px; text-align: center; color: var(--muted); }
 .no-submissions svg, .no-submissions strong { display: block; margin: 0 auto 7px; color: var(--forest); }
 .no-submissions p { margin: 0; }
-.shared-scorekeeper { width: min(100% - 32px, 720px); margin: -8px auto 32px; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: #fff; box-shadow: var(--shadow); }
+.completion-controls { display: grid; grid-column: 1 / -1; gap: 12px; width: 100%; }
+.shared-scorekeeper { width: 100%; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: #fff; }
 .shared-scorekeeper label { display: block; margin-bottom: 7px; font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; }
 .shared-scorekeeper p { margin: 8px 2px 0; color: var(--muted); font-size: 12px; }
 .shared-message section { width: min(620px, calc(100% - 28px)); margin: 70px auto; text-align: center; }

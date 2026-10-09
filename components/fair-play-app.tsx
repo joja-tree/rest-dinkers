@@ -275,7 +275,8 @@ function SharedScorecardPage({ shareKey }: { shareKey: string }) {
   const players = ids.map((id, index) => ({ id, name: nameById.get(id) ?? `Player ${index + 1}`, games: 0, rests: 0, consecutiveGames: 0, consecutiveRests: 0, points: 0, timePlayedSeconds: 0 }));
   const guestSession = { id: shared.sessionId, name: shared.sessionName, courts: 1, players, current: { number: shared.round, matches: [match], resting: [] }, next: { number: shared.round + 1, matches: [], resting: [] }, completedRounds: [], partnerCounts: {}, opponentCounts: {}, rules: match.rules } satisfies Session;
   async function submit() { if (!match?.winner || !scorekeeper.trim()) return; setState("submitting"); try { await submitScorecard(ownerId, shareId, scorekeeper, match); setState("submitted"); } catch { setState("ready"); setMessage("The result could not be submitted. Check your connection and try again."); } }
-  return <><Scorecard session={guestSession} match={match} onBack={submit} finishLabel={state === "submitting" ? "Submitting…" : scorekeeper.trim() ? "Submit Result" : "Enter Scorekeeper Name Below"} onPoint={() => setMatch(point(match))} onOut={() => setMatch(out(match))} onUndo={() => setMatch(undo(match))} onConfigure={setMatch} onHistory={() => undefined} onRules={() => undefined} /><div className="shared-scorekeeper"><label htmlFor="scorekeeper-name">Scorekeeper</label><input id="scorekeeper-name" className="input" placeholder="Enter Your Name" maxLength={50} value={scorekeeper} onChange={(event) => setScorekeeper(event.target.value)} /><p>{message || "Your result stays separate until the organizer accepts it."}</p></div></>;
+  const scorekeeperEntry = <div className="shared-scorekeeper"><label htmlFor="scorekeeper-name">Scorekeeper</label><input id="scorekeeper-name" className="input" placeholder="Enter Your Name" maxLength={50} value={scorekeeper} onChange={(event) => setScorekeeper(event.target.value)} /><p>{message || "Your result stays separate until the organizer accepts it."}</p></div>;
+  return <Scorecard session={guestSession} match={match} onBack={submit} finishLabel={state === "submitting" ? "Submitting…" : "Submit Result"} finishDisabled={!scorekeeper.trim() || state === "submitting"} completionContent={scorekeeperEntry} onPoint={() => setMatch(point(match))} onOut={() => setMatch(out(match))} onUndo={() => setMatch(undo(match))} onConfigure={setMatch} onHistory={() => undefined} onRules={() => undefined} />;
 }
 
 function SharedScorecardMessage({ title, message, success = false }: { title: string; message: string; success?: boolean }) {
@@ -638,7 +639,7 @@ function PreviousRounds({ session }: { session: Session }) {
   );
 }
 
-function Scorecard({ session, match, onBack, finishLabel = "Finish Match", onPoint, onOut, onUndo, onConfigure, user, saveState, onSignIn, onHistory, onRules }: { session: Session; match: Match; onBack: () => void; finishLabel?: string; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
+function Scorecard({ session, match, onBack, finishLabel = "Finish Match", finishDisabled = false, completionContent, onPoint, onOut, onUndo, onConfigure, user, saveState, onSignIn, onHistory, onRules }: { session: Session; match: Match; onBack: () => void; finishLabel?: string; finishDisabled?: boolean; completionContent?: React.ReactNode; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
   const [editingSetup, setEditingSetup] = useState(false);
   const serving = match.servingTeam === "A" ? match.teamA : match.teamB;
   const teamAHasServed = match.teamA.some((id) => (match.serveCounts[id] ?? 0) > 0);
@@ -675,7 +676,7 @@ function Scorecard({ session, match, onBack, finishLabel = "Finish Match", onPoi
         </div>
         <div className="controls">
           {match.winner ? (
-            <button className="control finish-match" onClick={onBack}><Check size={22} /> {finishLabel}</button>
+            <div className="completion-controls">{completionContent}<button className="control finish-match" disabled={finishDisabled} onClick={onBack}><Check size={22} /> {finishLabel}</button></div>
           ) : (
             <>
               <button className="control point" onClick={onPoint}>Score</button>
