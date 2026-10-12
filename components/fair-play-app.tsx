@@ -254,6 +254,7 @@ export function FairPlayApp() {
         session={session}
         match={activeMatch}
         onBack={() => setActiveMatchId(null)}
+        onExit={() => setActiveMatchId(null)}
         onPoint={() => updateMatch(point(activeMatch))}
         onOut={() => updateMatch(out(activeMatch))}
         onUndo={() => updateMatch(undo(activeMatch))}
@@ -683,7 +684,7 @@ function PreviousRounds({ session }: { session: Session }) {
   );
 }
 
-function Scorecard({ session, match, onBack, finishLabel = "Finish Match", finishDisabled = false, completionContent, compactCompletion = false, onPoint, onOut, onUndo, onConfigure, user, saveState, onSignIn, onHistory, onRules }: { session: Session; match: Match; onBack: () => void; finishLabel?: string; finishDisabled?: boolean; completionContent?: React.ReactNode; compactCompletion?: boolean; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
+function Scorecard({ session, match, onBack, onExit, finishLabel = "Finish Match", finishDisabled = false, completionContent, compactCompletion = false, onPoint, onOut, onUndo, onConfigure, user, saveState, onSignIn, onHistory, onRules }: { session: Session; match: Match; onBack: () => void; onExit?: () => void; finishLabel?: string; finishDisabled?: boolean; completionContent?: React.ReactNode; compactCompletion?: boolean; onPoint: () => void; onOut: () => void; onUndo: () => void; onConfigure: (match: Match) => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
   const [editingSetup, setEditingSetup] = useState(false);
   const serving = match.servingTeam === "A" ? match.teamA : match.teamB;
   const teamAHasServed = match.teamA.some((id) => (match.serveCounts[id] ?? 0) > 0);
@@ -694,7 +695,7 @@ function Scorecard({ session, match, onBack, finishLabel = "Finish Match", finis
       <main className="shell">
         <Header user={user} saveState={saveState} onSignIn={onSignIn} onHistory={onHistory} onRules={onRules} />
         <div className="content scorecard setup-only">
-          <div className="scorecard-meta"><p className="eyebrow">Court {match.court} · Match Setup</p></div>
+          <div className="scorecard-meta"><p className="eyebrow">Court {match.court} · Match Setup</p>{onExit && <button className="scorecard-exit" onClick={onExit}><X size={15} /> Exit Scorecard</button>}</div>
           <MatchSetup match={match} session={session} onChange={onConfigure} />
         </div>
       </main>
@@ -706,7 +707,7 @@ function Scorecard({ session, match, onBack, finishLabel = "Finish Match", finis
       <div className={`content scorecard ${compactCompletion && match.winner ? "shared-completion" : ""}`}>
         <div className="scorecard-meta">
           <p className="eyebrow">Court {match.court} · {match.rules.name}</p>
-          <button className="scorecard-undo" disabled={!match.history.length} onClick={onUndo}><RotateCcw size={15} /> Undo</button>
+          <div className="scorecard-meta-actions">{onExit && <button className="scorecard-exit" onClick={onExit}><X size={15} /> Exit Scorecard</button>}<button className="scorecard-undo" disabled={!match.history.length} onClick={onUndo}><RotateCcw size={15} /> Undo</button></div>
         </div>
         {editingSetup && setupEditable
           ? <LiveMatchSetupEditor match={match} session={session} onChange={onConfigure} onDone={() => setEditingSetup(false)} />
