@@ -12,7 +12,7 @@ export type SharedScorecard = {
   teamANames: string[];
   teamBNames: string[];
   match: Match;
-  status: "open" | "accepted";
+  status: "open" | "accepted" | "closed";
   acceptedSubmissionId?: string;
 };
 
@@ -64,4 +64,8 @@ export async function submitScorecard(ownerId: string, shareId: string, submitte
 
 export async function acceptScorecardSubmission(ownerId: string, shareId: string, submissionId: string) {
   await updateDoc(scorecardRef(ownerId, shareId), { status: "accepted", acceptedSubmissionId: submissionId, acceptedAt: serverTimestamp() });
+}
+
+export async function closeSharedScorecard(ownerId: string, shareId: string) {
+  await updateDoc(scorecardRef(ownerId, shareId), { status: "closed", closedAt: serverTimestamp() });
 }

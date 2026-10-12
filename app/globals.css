@@ -324,6 +324,22 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .offline-indicator span { width: 8px; height: 8px; border-radius: 50%; background: #e49b41; box-shadow: 0 0 0 3px rgba(228,155,65,.18); }
 .match-actions { display: grid; grid-template-columns: 1fr auto; gap: 10px; margin: 0 16px 16px; }
 .match-actions .button.primary.score-button { width: 100%; margin: 0; }
+.end-without-score { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; padding: 0 14px; border: 1px solid var(--line); border-radius: 16px; background: white; color: var(--muted); font-size: 10px; font-weight: 900; white-space: nowrap; }
+.end-without-score:hover { border-color: rgba(18,66,50,.3); background: var(--paper); color: var(--forest); }
+.winner-only-backdrop { z-index: 190; }
+.winner-only-modal { position: relative; width: min(540px, calc(100% - 28px)); padding: 30px; border-radius: 26px; background: white; box-shadow: 0 28px 90px rgba(7,35,26,.32); text-align: center; }
+.winner-only-modal > .modal-close { position: absolute; top: 16px; right: 16px; }
+.winner-only-icon { display: grid; width: 52px; height: 52px; margin: 0 auto 14px; place-items: center; border-radius: 50%; background: rgba(177,186,20,.18); color: var(--forest); }
+.winner-only-modal h2 { margin: 7px 0; font-size: 30px; }
+.winner-only-modal > p { max-width: 420px; margin: 0 auto 20px; color: var(--muted); line-height: 1.5; }
+.winner-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.winner-options button { min-width: 0; min-height: 118px; padding: 16px; border: 1px solid var(--line); border-radius: 17px; background: var(--paper); color: var(--forest); text-align: left; }
+.winner-options button:hover { border-color: var(--lime); background: rgba(177,186,20,.14); }
+.winner-options small, .winner-options strong, .winner-options span { display: block; }
+.winner-options small { color: var(--lime-dark); font-size: 9px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.winner-options strong { margin: 7px 0 10px; overflow: hidden; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
+.winner-options span { color: var(--muted); font-size: 10px; font-weight: 800; }
+.winner-cancel { min-height: 40px; margin-top: 14px; padding: 0 20px; border: 0; background: transparent; color: var(--muted); font-size: 11px; font-weight: 900; }
 .share-backdrop { z-index: 180; }
 .share-scorecard-modal { width: min(760px, calc(100% - 28px)); max-height: calc(100vh - 36px); overflow: auto; border-radius: 28px; background: #fff; box-shadow: 0 28px 90px rgba(7,35,26,.3); }
 .share-scorecard-modal > header { display: flex; justify-content: space-between; gap: 20px; padding: 28px 30px; border-radius: 28px 28px 0 0; background: var(--forest); color: var(--cream); }
@@ -362,6 +378,12 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .shared-link-icon, .shared-success-icon { display: grid; width: 60px; height: 60px; margin: 0 auto 18px; place-items: center; border-radius: 50%; background: var(--paper); color: var(--forest); }
 .shared-success-icon { background: var(--lime); }
 @media (max-width: 760px) {
+  .end-without-score { width: 48px; min-width: 48px; padding: 0; font-size: 0; }
+  .end-without-score svg { width: 17px; height: 17px; }
+  .winner-only-modal { padding: 25px 17px 17px; border-radius: 21px; }
+  .winner-only-modal h2 { font-size: 26px; }
+  .winner-options { grid-template-columns: 1fr; }
+  .winner-options button { min-height: 92px; }
   .topbar { flex-wrap: nowrap; gap: 8px; padding: 9px 11px; }
   .brand { flex: 0 0 auto; }
   .brand img { width: 112px; height: 51px; }

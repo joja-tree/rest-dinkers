@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpen, CalendarDays, Check, ChevronDown, Clock3, Copy, ExternalLink, History, Link2, LogOut, Plus, RotateCcw, Search, Send, Share2, Trash2, Users, X } from "lucide-react";
+import { BookOpen, CalendarDays, Check, ChevronDown, Clock3, Copy, ExternalLink, Flag, History, Link2, LogOut, Plus, RotateCcw, Search, Send, Share2, Trash2, Users, X } from "lucide-react";
 import type { User } from "firebase/auth";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
 import type { GameFormat, Match, Session, Team } from "@/lib/domain";
@@ -12,7 +12,7 @@ import { createSession } from "@/lib/session";
 import { firebaseAuth, firebaseConfigured } from "@/firebase/client";
 import { archiveSession, deleteSession, loadActiveSession, loadSessionHistory, saveActiveSession, subscribeSessionHistory, type SessionHistoryItem } from "@/firebase/sessions";
 import { DEFAULT_RULES, RULE_PRESETS } from "@/lib/game-rules";
-import { acceptScorecardSubmission, createSharedScorecard, loadSharedScorecard, submitScorecard, subscribeSubmissions, type ScorecardSubmission, type SharedScorecard } from "@/firebase/scorecards";
+import { acceptScorecardSubmission, closeSharedScorecard, createSharedScorecard, loadSharedScorecard, submitScorecard, subscribeSubmissions, type ScorecardSubmission, type SharedScorecard } from "@/firebase/scorecards";
 
 const STORAGE_KEY = "rest-dinkers-session-v1";
 const FORMAT_KEY = "rest-dinkers-game-format";
@@ -49,6 +49,7 @@ export function FairPlayApp() {
   const [deleteError, setDeleteError] = useState("");
   const [sharedScorecardKey, setSharedScorecardKey] = useState<string | null | undefined>(undefined);
   const [sharingMatch, setSharingMatch] = useState<Match | null>(null);
+  const [endingMatch, setEndingMatch] = useState<Match | null>(null);
   const online = useOnlineStatus();
 
   useEffect(() => {
@@ -173,6 +174,14 @@ export function FairPlayApp() {
     setActiveMatchId(matchId);
   }
 
+  function finishWithoutScore(team: "A" | "B") {
+    if (!endingMatch) return;
+    const finished = { ...endingMatch, scoreA: 0, scoreB: 0, winner: team, scoreless: true, setupComplete: true, endedAt: Date.now() } satisfies Match;
+    updateMatch(finished);
+    if (user && endingMatch.shareId) closeSharedScorecard(user.uid, endingMatch.shareId).catch(() => undefined);
+    setEndingMatch(null);
+  }
+
   async function endSession() {
     if (!session) return;
     if (user) {
@@ -247,7 +256,7 @@ export function FairPlayApp() {
       </>
     );
   }
-  return <><SessionView session={session} onScore={openMatch} onShare={(match) => setSharingMatch(match)} onAdvance={advanceRound} onEnd={endSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{sharingMatch && user && <ShareScorecardModal user={user} session={session} match={sharingMatch} onMatchChange={(next) => { updateMatch(next); setSharingMatch(next); }} onClose={() => setSharingMatch(null)} />}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onDelete={removeHistorySession} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => { setSelectedHistory(null); setShowHistory(true); }} />}{pendingDelete && <DeleteSessionConfirmation item={pendingDelete} busy={deleting} error={deleteError} onCancel={() => setPendingDelete(null)} onConfirm={confirmDeleteSession} />}</>;
+  return <><SessionView session={session} onScore={openMatch} onShare={(match) => setSharingMatch(match)} onEndWithoutScore={(match) => setEndingMatch(match)} onAdvance={advanceRound} onEnd={endSession} user={user} saveState={saveState} onSignIn={() => setShowAuth(true)} onHistory={() => setShowHistory(true)} onRules={() => setShowRules(true)} />{!online && <OfflineIndicator />}{authModal}{endingMatch && <WinnerOnlyModal match={endingMatch} session={session} onChoose={finishWithoutScore} onClose={() => setEndingMatch(null)} />}{sharingMatch && user && <ShareScorecardModal user={user} session={session} match={sharingMatch} onMatchChange={(next) => { updateMatch(next); setSharingMatch(next); }} onClose={() => setSharingMatch(null)} />}{showRules && <RulesGuide onClose={() => setShowRules(false)} />}{showHistory && <SessionHistoryLibrary items={sessionHistory} onView={(item) => { setShowHistory(false); setSelectedHistory(item); }} onDelete={removeHistorySession} onClose={() => setShowHistory(false)} />}{selectedHistory && <SessionHistoryDetails item={selectedHistory} onClose={() => { setSelectedHistory(null); setShowHistory(true); }} />}{pendingDelete && <DeleteSessionConfirmation item={pendingDelete} busy={deleting} error={deleteError} onCancel={() => setPendingDelete(null)} onConfirm={confirmDeleteSession} />}</>;
 }
 
 function OfflineIndicator() {
@@ -265,7 +274,7 @@ function SharedScorecardPage({ shareKey }: { shareKey: string }) {
   const [message, setMessage] = useState("");
   useEffect(() => {
     if (!firebaseConfigured || !ownerId || !shareId) { setState("error"); setMessage("This Scorecard link is invalid."); return; }
-    loadSharedScorecard(ownerId, shareId).then((value) => { if (!value) throw new Error("not-found"); setShared(value); setMatch(value.match); setState(value.status === "open" ? "ready" : "error"); if (value.status !== "open") setMessage("This Scorecard has already been accepted."); }).catch(() => { setState("error"); setMessage("This Scorecard is unavailable. Ask the organizer for a new link."); });
+    loadSharedScorecard(ownerId, shareId).then((value) => { if (!value) throw new Error("not-found"); setShared(value); setMatch(value.match); setState(value.status === "open" ? "ready" : "error"); if (value.status !== "open") setMessage(value.status === "closed" ? "The organizer ended this match without recording a score." : "This Scorecard has already been accepted."); }).catch(() => { setState("error"); setMessage("This Scorecard is unavailable. Ask the organizer for a new link."); });
   }, [ownerId, shareId]);
   if (state === "loading") return <main className="shell loading">Opening The Scorecard…</main>;
   if (!shared || !match || state === "error") return <SharedScorecardMessage title="Scorecard Unavailable" message={message} />;
@@ -470,6 +479,10 @@ function DeleteSessionConfirmation({ item, busy, error, onCancel, onConfirm }: {
   return <div className="modal-backdrop delete-backdrop" role="presentation" onMouseDown={() => !busy && onCancel()}><section className="delete-confirmation" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" aria-describedby="delete-description" onMouseDown={(event) => event.stopPropagation()}><div className="delete-icon"><Trash2 size={24} /></div><span className="eyebrow">Delete Saved Session</span><h2 id="delete-title">Delete {item.session.name}?</h2><p id="delete-description">This session and its match history will be permanently removed. This action cannot be undone.</p>{error && <p className="delete-error">{error}</p>}<div className="delete-actions"><button disabled={busy} onClick={onCancel}>Cancel</button><button className="danger" disabled={busy} onClick={onConfirm}>{busy ? "Deleting…" : "Delete Session"}</button></div></section></div>;
 }
 
+function WinnerOnlyModal({ match, session, onChoose, onClose }: { match: Match; session: Session; onChoose: (team: "A" | "B") => void; onClose: () => void }) {
+  return <div className="modal-backdrop winner-only-backdrop" role="presentation" onMouseDown={onClose}><section className="winner-only-modal" role="dialog" aria-modal="true" aria-labelledby="winner-only-title" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={onClose} aria-label="Close Winner Picker">×</button><div className="winner-only-icon"><Flag size={22} /></div><span className="eyebrow">End Without Score</span><h2 id="winner-only-title">Who Won The Match?</h2><p>Select the winning team. The match will count as played, but no points will be recorded.</p><div className="winner-options"><button onClick={() => onChoose("A")}><small>Team A</small><strong>{names(match.teamA, session)}</strong><span>Record Team A As Winner</span></button><button onClick={() => onChoose("B")}><small>Team B</small><strong>{names(match.teamB, session)}</strong><span>Record Team B As Winner</span></button></div><button className="winner-cancel" onClick={onClose}>Cancel</button></section></div>;
+}
+
 function SessionHistoryDetails({ item, onClose }: { item: SessionHistoryItem; onClose: () => void }) {
   const session = item.session;
   const rounds = historyRounds(session);
@@ -480,7 +493,7 @@ function SessionHistoryDetails({ item, onClose }: { item: SessionHistoryItem; on
         <header className="rules-header"><div><span className="eyebrow">Saved Session</span><h2 id="history-title">{session.name}</h2><p>{session.rules.name} · {session.players.length} Players · {rounds.length} Round{rounds.length === 1 ? "" : "s"}</p></div><button className="modal-close" onClick={onClose} aria-label="Close Session History">×</button></header>
         <div className="history-details">
           <div className="history-player-summary">{session.players.map((player) => { const playerMatches = matches.filter((match) => [...match.teamA, ...match.teamB].includes(player.id)); const games = playerMatches.length; const points = playerMatches.reduce((total, match) => total + (match.teamA.includes(player.id) ? match.scoreA : match.scoreB), 0); return <div key={player.id}><strong>{player.name}</strong><span>{games} Game{games === 1 ? "" : "s"}</span><span>{points} Point{points === 1 ? "" : "s"}</span></div>; })}</div>
-          {rounds.length ? rounds.map((round) => <article className="history-round" key={round.number}><div className="history-round-heading"><span>Round {round.number}</span><small>{round.matches.length} Match{round.matches.length === 1 ? "" : "es"}</small></div><div className="history-round-matches">{round.matches.map((match) => <div className="history-match" key={match.id}><div className="history-match-heading"><span>Court {match.court}</span><em><Clock3 size={12} /> {matchDuration(match)}</em></div><div className={`history-result-team ${match.winner === "A" ? "winner" : ""}`}><div><small>Team A</small><strong>{names(match.teamA, session)}</strong></div><b>{match.scoreA}</b></div><div className={`history-result-team ${match.winner === "B" ? "winner" : ""}`}><div><small>Team B</small><strong>{names(match.teamB, session)}</strong></div><b>{match.scoreB}</b></div>{match.winner && <div className="history-winner"><Check size={13} /> Team {match.winner} Winner</div>}</div>)}</div></article>) : <div className="empty-history"><History size={23} /><div><strong>No Completed Rounds</strong><p>This session ended before a round was completed.</p></div></div>}
+          {rounds.length ? rounds.map((round) => <article className="history-round" key={round.number}><div className="history-round-heading"><span>Round {round.number}</span><small>{round.matches.length} Match{round.matches.length === 1 ? "" : "es"}</small></div><div className="history-round-matches">{round.matches.map((match) => <div className="history-match" key={match.id}><div className="history-match-heading"><span>Court {match.court}</span><em><Clock3 size={12} /> {matchDuration(match)}</em></div><div className={`history-result-team ${match.winner === "A" ? "winner" : ""}`}><div><small>Team A</small><strong>{names(match.teamA, session)}</strong></div><b>{displayScore(match, "A")}</b></div><div className={`history-result-team ${match.winner === "B" ? "winner" : ""}`}><div><small>Team B</small><strong>{names(match.teamB, session)}</strong></div><b>{displayScore(match, "B")}</b></div>{match.winner && <div className="history-winner"><Check size={13} /> Team {match.winner} Winner</div>}</div>)}</div></article>) : <div className="empty-history"><History size={23} /><div><strong>No Completed Rounds</strong><p>This session ended before a round was completed.</p></div></div>}
         </div>
       </section>
     </div>
@@ -547,7 +560,7 @@ function RulesGuide({ onClose }: { onClose: () => void }) {
   );
 }
 
-function SessionView({ session, onScore, onShare, onAdvance, onEnd, user, saveState, onSignIn, onHistory, onRules }: { session: Session; onScore: (id: string) => void; onShare: (match: Match) => void; onAdvance: () => void; onEnd: () => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
+function SessionView({ session, onScore, onShare, onEndWithoutScore, onAdvance, onEnd, user, saveState, onSignIn, onHistory, onRules }: { session: Session; onScore: (id: string) => void; onShare: (match: Match) => void; onEndWithoutScore: (match: Match) => void; onAdvance: () => void; onEnd: () => void; user?: User | null; saveState?: SaveState; onSignIn?: () => void; onHistory: () => void; onRules: () => void }) {
   const complete = session.current.matches.every((match) => Boolean(match.winner));
   return (
     <main className="shell">
@@ -560,7 +573,7 @@ function SessionView({ session, onScore, onShare, onAdvance, onEnd, user, saveSt
           <div className="round-column">
             <section className="card current-round">
               <span className="round-label">Current · Round {session.current.number}</span>
-              {session.current.matches.map((match) => <MatchCard key={match.id} match={match} session={session} onScore={onScore} onShare={user ? onShare : undefined} />)}
+              {session.current.matches.map((match) => <MatchCard key={match.id} match={match} session={session} onScore={onScore} onShare={user ? onShare : undefined} onEndWithoutScore={onEndWithoutScore} />)}
             </section>
             <PreviousRounds session={session} />
           </div>
@@ -580,19 +593,19 @@ function SessionView({ session, onScore, onShare, onAdvance, onEnd, user, saveSt
   );
 }
 
-function MatchCard({ match, session, onScore, onShare }: { match: Match; session: Session; onScore: (id: string) => void; onShare?: (match: Match) => void }) {
+function MatchCard({ match, session, onScore, onShare, onEndWithoutScore }: { match: Match; session: Session; onScore: (id: string) => void; onShare?: (match: Match) => void; onEndWithoutScore: (match: Match) => void }) {
   return (
     <div className="match-card">
       <div className="court-label"><span>Court {match.court}{match.winner ? ` · Team ${match.winner} Wins` : " · In Play"}</span>{onShare && <button className="court-share-button" onClick={() => onShare(match)} aria-label={match.shareId ? "Review Shared Results" : "Share Scorecard"} title={match.shareId ? "Review Shared Results" : "Share Scorecard"}><Share2 size={15} /></button>}</div>
       {match.winner ? (
-        <><div className="current-result" aria-label={`Final score ${match.scoreA} to ${match.scoreB}`}>
-          <div className={match.winner === "A" ? "winner" : ""}><span>Team A</span><strong>{names(match.teamA, session)}</strong><b>{match.scoreA}</b></div>
-          <div className={match.winner === "B" ? "winner" : ""}><span>Team B</span><strong>{names(match.teamB, session)}</strong><b>{match.scoreB}</b></div>
+        <><div className="current-result" aria-label={match.scoreless ? `Team ${match.winner} won; no score recorded` : `Final score ${match.scoreA} to ${match.scoreB}`}>
+          <div className={match.winner === "A" ? "winner" : ""}><span>Team A</span><strong>{names(match.teamA, session)}</strong><b>{displayScore(match, "A")}</b></div>
+          <div className={match.winner === "B" ? "winner" : ""}><span>Team B</span><strong>{names(match.teamB, session)}</strong><b>{displayScore(match, "B")}</b></div>
         </div></>
       ) : (
         <>
           <div className="teams"><div className="team">{names(match.teamA, session)}</div><span className="versus">VS</span><div className="team">{names(match.teamB, session)}</div></div>
-          <div className="match-actions"><button className="button primary score-button" onClick={() => onScore(match.id)}>Open Scorecard</button></div>
+          <div className="match-actions"><button className="button primary score-button" onClick={() => onScore(match.id)}>Open Scorecard</button><button className="end-without-score" onClick={() => onEndWithoutScore(match)} aria-label="End Without Score" title="End Without Score"><Flag size={14} /> End Without Score</button></div>
         </>
       )}
     </div>
@@ -629,8 +642,8 @@ function PreviousRounds({ session }: { session: Session }) {
             {round.matches.map((match) => (
               <div className="previous-match" key={match.id}>
                 <div className="previous-match-header"><span className="previous-court">Court {match.court}</span><span className="duration-label">{matchDuration(match)}</span></div>
-                <div className={`previous-team-row ${match.winner === "A" ? "winner" : ""}`}><div><small>Team A</small><strong>{names(match.teamA, session)}</strong></div><span>{match.scoreA}</span></div>
-                <div className={`previous-team-row ${match.winner === "B" ? "winner" : ""}`}><div><small>Team B</small><strong>{names(match.teamB, session)}</strong></div><span>{match.scoreB}</span></div>
+                <div className={`previous-team-row ${match.winner === "A" ? "winner" : ""}`}><div><small>Team A</small><strong>{names(match.teamA, session)}</strong></div><span>{displayScore(match, "A")}</span></div>
+                <div className={`previous-team-row ${match.winner === "B" ? "winner" : ""}`}><div><small>Team B</small><strong>{names(match.teamB, session)}</strong></div><span>{displayScore(match, "B")}</span></div>
                 <div className="winner-badge">Team {match.winner} Winner</div>
               </div>
             ))}
@@ -816,6 +829,10 @@ function playerName(id: string, session: Session) {
 
 function names(ids: readonly string[], session: Session) {
   return ids.map((id) => playerName(id, session)).join(" + ");
+}
+
+function displayScore(match: Match, team: "A" | "B") {
+  return match.scoreless ? "—" : team === "A" ? match.scoreA : match.scoreB;
 }
 
 function RoundTimer({ startedAt, endedAt }: { startedAt: number | null; endedAt: number | null }) {
