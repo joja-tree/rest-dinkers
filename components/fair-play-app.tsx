@@ -752,7 +752,7 @@ function CourtPreview({ match, session, onChange, lockedTeams = [] }: { match: M
   const position = (team: "A" | "B", index: number, className: string) => {
     const id = (team === "A" ? match.teamA : match.teamB)[index];
     if (!id) return null;
-    return <PlayerPosition className={className} number={index + 1} name={playerName(id, session)} editable={Boolean(onChange) && available.length > 0 && !lockedTeams.includes(team)} onClick={() => setSelected({ team, index })} />;
+    return <PlayerPosition className={className} number={index + 1} name={playerName(id, session)} editable={Boolean(onChange) && !lockedTeams.includes(team)} onClick={() => setSelected({ team, index })} />;
   };
   return (
     <><div className={`court-preview ${match.rules.teamSize === 1 ? "singles-court" : ""}`} aria-label="Player positions on court">
@@ -764,7 +764,7 @@ function CourtPreview({ match, session, onChange, lockedTeams = [] }: { match: M
       <span className="court-team-label team-a-label">Team A</span>
       <span className="court-team-label team-b-label">Team B</span>
       {position("A", 0, "player-a1")}{position("A", 1, "player-a2")}{position("B", 0, "player-b1")}{position("B", 1, "player-b2")}
-    </div>{selected && <div className="modal-backdrop substitute-backdrop" role="presentation" onMouseDown={() => setSelected(null)}><section className="substitute-picker" role="dialog" aria-modal="true" aria-labelledby="substitute-title" onMouseDown={(event) => event.stopPropagation()}><header><div><span className="eyebrow">Match Setup</span><h2 id="substitute-title">Choose A Substitute</h2><p>Replace {playerName((selected.team === "A" ? match.teamA : match.teamB)[selected.index], session)} on Team {selected.team}.</p></div><button className="modal-close" onClick={() => setSelected(null)} aria-label="Close Substitute Picker">×</button></header>{available.length ? <div className="substitute-list">{available.map((player) => <button key={player.id} onClick={() => choosePlayer(player.id)}><span>{player.name.slice(0, 1).toUpperCase()}</span><strong>{player.name}</strong><small>Available</small></button>)}</div> : <div className="no-substitutes"><Users size={22} /><strong>No Available Players</strong><p>Every other player is currently assigned to a court.</p></div>}</section></div>}</>
+    </div>{selected && <div className="modal-backdrop substitute-backdrop" role="presentation" onMouseDown={() => setSelected(null)}><section className="substitute-picker" role="dialog" aria-modal="true" aria-labelledby="substitute-title" onMouseDown={(event) => event.stopPropagation()}><header><div><span className="eyebrow">Match Setup</span><h2 id="substitute-title">Choose A Substitute</h2><p>Replace {playerName((selected.team === "A" ? match.teamA : match.teamB)[selected.index], session)} on Team {selected.team}.</p></div><button className="modal-close" onClick={() => setSelected(null)} aria-label="Close Substitute Picker">×</button></header>{available.length ? <div className="substitute-list">{available.map((player) => <button key={player.id} onClick={() => choosePlayer(player.id)}><span>{player.name.slice(0, 1).toUpperCase()}</span><strong>{player.name}</strong><small>Available</small></button>)}</div> : <div className="no-substitutes"><Users size={22} /><strong>No Available Substitutes</strong><p>Every other player is currently assigned to a court.</p></div>}</section></div>}</>
   );
 }
 
