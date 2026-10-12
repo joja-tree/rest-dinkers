@@ -165,6 +165,13 @@ export function FairPlayApp() {
     setSession({ ...session, current });
   }
 
+  function configureMatch(nextMatch: Match) {
+    const original = session?.current.matches.find((match) => match.id === nextMatch.id);
+    const rosterChanged = original && JSON.stringify([original.teamA, original.teamB]) !== JSON.stringify([nextMatch.teamA, nextMatch.teamB]);
+    if (rosterChanged && user && original.shareId) closeSharedScorecard(user.uid, original.shareId).catch(() => undefined);
+    updateMatch(rosterChanged ? { ...nextMatch, shareId: undefined } : nextMatch);
+  }
+
   function advanceRound() {
     if (!session || !session.current.matches.every((match) => Boolean(match.winner))) return;
     setSession(applyCompletedRound(session));
@@ -258,7 +265,7 @@ export function FairPlayApp() {
         onPoint={() => updateMatch(point(activeMatch))}
         onOut={() => updateMatch(out(activeMatch))}
         onUndo={() => updateMatch(undo(activeMatch))}
-        onConfigure={updateMatch}
+        onConfigure={configureMatch}
         user={user}
         saveState={saveState}
         onSignIn={() => setShowAuth(true)}
@@ -768,20 +775,34 @@ function MatchSetup({ match, session, onChange }: { match: Match; session: Sessi
         <div><span>Team A Order</span><strong>1 · {playerName(match.teamA[0], session)}</strong><strong>2 · {playerName(match.teamA[1]!, session)}</strong><button onClick={() => swap("A")}>Swap Players</button></div>
         <div><span>Team B Order</span><strong>1 · {playerName(match.teamB[0], session)}</strong><strong>2 · {playerName(match.teamB[1]!, session)}</strong><button onClick={() => swap("B")}>Swap Players</button></div>
       </div>}
-      <CourtPreview match={match} session={session} />
+      <CourtPreview match={match} session={session} onChange={onChange} />
       <button className="button primary start-match-button" onClick={startMatch}>Start Match</button>
     </section>
   );
 }
 
-function CourtPreview({ match, session }: { match: Match; session: Session }) {
+function CourtPreview({ match, session, onChange, lockedTeams = [] }: { match: Match; session: Session; onChange?: (match: Match) => void; lockedTeams?: ("A" | "B")[] }) {
+  const [selected, setSelected] = useState<{ team: "A" | "B"; index: number } | null>(null);
+  function choosePlayer(playerId: string) {
+    if (!selected || !onChange) return;
+    const oldPlayerId = (selected.team === "A" ? match.teamA : match.teamB)[selected.index];
+    const replacement = [...(selected.team === "A" ? match.teamA : match.teamB)];
+    replacement[selected.index] = playerId;
+    const teamA = selected.team === "A" ? replacement as Team : match.teamA;
+    const teamB = selected.team === "B" ? replacement as Team : match.teamB;
+    const serveCounts = { ...match.serveCounts };
+    delete serveCounts[oldPlayerId];
+    if (match.servingTeam === selected.team && match.server === selected.index + 1) serveCounts[playerId] = 1;
+    onChange({ ...match, teamA, teamB, serveCounts });
+    setSelected(null);
+  }
   const position = (team: "A" | "B", index: number, className: string) => {
     const id = (team === "A" ? match.teamA : match.teamB)[index];
     if (!id) return null;
-    return <PlayerPosition className={className} number={index + 1} name={playerName(id, session)} />;
+    return <PlayerPosition className={className} number={index + 1} name={playerName(id, session)} editable={Boolean(onChange) && !lockedTeams.includes(team)} onClick={() => setSelected({ team, index })} />;
   };
   return (
-    <div className={`court-preview ${match.rules.teamSize === 1 ? "singles-court" : ""}`} aria-label="Player positions on court">
+    <><div className={`court-preview ${match.rules.teamSize === 1 ? "singles-court" : ""}`} aria-label="Player positions on court">
       <div className="court-lines" />
       <div className="court-center-line" />
       <div className="court-kitchen kitchen-left" />
@@ -790,12 +811,12 @@ function CourtPreview({ match, session }: { match: Match; session: Session }) {
       <span className="court-team-label team-a-label">Team A</span>
       <span className="court-team-label team-b-label">Team B</span>
       {position("A", 0, "player-a1")}{position("A", 1, "player-a2")}{position("B", 0, "player-b1")}{position("B", 1, "player-b2")}
-    </div>
+    </div>{selected && <SubstitutePicker match={match} team={selected.team} index={selected.index} session={session} onChoose={choosePlayer} onClose={() => setSelected(null)} />}</>
   );
 }
 
-function PlayerPosition({ number, name, className }: { number: number; name: string; className: string }) {
-  return <div className={`player-position ${className}`}><span>{number}</span><strong>{name}</strong></div>;
+function PlayerPosition({ number, name, className, editable, onClick }: { number: number; name: string; className: string; editable: boolean; onClick: () => void }) {
+  return <button type="button" className={`player-position ${className} ${editable ? "editable" : ""}`} disabled={!editable} onClick={onClick} aria-label={editable ? `Substitute ${name}` : name}><span>{number}</span><strong>{name}</strong></button>;
 }
 
 function CollapsedMatchSetup({ match, session, canEdit, onEdit }: { match: Match; session: Session; canEdit: boolean; onEdit: () => void }) {
@@ -831,7 +852,7 @@ function LiveMatchSetupEditor({ match, session, onChange, onDone }: { match: Mat
         <div className={teamAHasServed ? "order-locked" : ""}><span>Team A Order</span><strong>1 · {playerName(match.teamA[0], session)}</strong><strong>2 · {playerName(match.teamA[1]!, session)}</strong><button disabled={teamAHasServed} onClick={() => swap("A")}>{teamAHasServed ? "Order Locked" : "Swap Players"}</button></div>
         <div className={teamBHasServed ? "order-locked" : ""}><span>Team B Order</span><strong>1 · {playerName(match.teamB[0], session)}</strong><strong>2 · {playerName(match.teamB[1]!, session)}</strong><button disabled={teamBHasServed} onClick={() => swap("B")}>{teamBHasServed ? "Order Locked" : "Swap Players"}</button></div>
       </div>}
-      <CourtPreview match={match} session={session} />
+      <CourtPreview match={match} session={session} onChange={onChange} lockedTeams={[...(teamAHasServed ? ["A" as const] : []), ...(teamBHasServed ? ["B" as const] : [])]} />
     </section>
   );
 }
