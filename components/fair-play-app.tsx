@@ -732,7 +732,7 @@ function Scorecard({ session, match, onBack, onExit, finishLabel = "Finish Match
           ) : (
             <>
               <button className="control point" onClick={onPoint}>Score</button>
-              <button className="control out" onClick={onOut}>Fault</button>
+              <button className="control out" onClick={onOut}>Side Out</button>
             </>
           )}
         </div>
@@ -887,7 +887,7 @@ function MatchStatistics({ match, session }: { match: Match; session: Session })
   return (
     <section className="match-statistics card">
       <div className="match-stat-heading"><div><span className="eyebrow">Match Statistics</span><h2>At a Glance</h2></div><strong>{formatTime(elapsed)}</strong></div>
-      <div className="match-stat-grid header"><span>Team</span><span>Score</span><span>Serves</span><span>Faults</span></div>
+      <div className="match-stat-grid header"><span>Team</span><span>Score</span><span>Serves</span><span>Side Outs</span></div>
       <div className="match-stat-grid"><div><strong>Team A</strong><small>{names(match.teamA, session)}</small></div><span>{match.scoreA}</span><span>{teamServes(match.teamA)}</span><span>{teamFaults(match.teamA)}</span></div>
       <div className="match-stat-grid"><div><strong>Team B</strong><small>{names(match.teamB, session)}</small></div><span>{match.scoreB}</span><span>{teamServes(match.teamB)}</span><span>{teamFaults(match.teamB)}</span></div>
     </section>
@@ -915,7 +915,7 @@ function PersonalStats({ player, session, onClose }: { player: Session["players"
     ["Games", player.games],
     ["Court Time", formatTime(player.timePlayedSeconds + activeSeconds)],
     ["Serves", serves],
-    ["Faults", faults],
+    ["Side Outs", faults],
     ["Avg. Points", player.games ? (player.points / player.games).toFixed(1) : "0.0"],
     ["Current Streak", player.consecutiveGames],
   ];
