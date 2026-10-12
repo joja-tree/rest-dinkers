@@ -216,13 +216,13 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .player-modal-header .eyebrow { color: var(--lime); }
 .player-modal-header h2 { margin: 5px 0 0; color: var(--cream); font-size: 38px; letter-spacing: -.045em; }
 .modal-close { width: 40px; height: 40px; border: 1px solid rgba(242,239,215,.25); border-radius: 50%; background: rgba(242,239,215,.1); color: var(--cream); font-size: 25px; line-height: 1; }
-.personal-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+.personal-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
 .personal-stat { min-height: 78px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--paper); }
 .personal-stat span { display: block; color: var(--muted); font-size: 8px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
 .personal-stat strong { display: block; margin-top: 7px; font-size: 22px; font-variant-numeric: tabular-nums; }
 .personal-stat:nth-child(-n+3) { min-height: 105px; padding: 15px; }
 .personal-stat:nth-child(-n+3) strong { margin-top: 10px; font-size: 31px; }
-.personal-stat:first-child { grid-column: span 2; background: var(--lime); border-color: var(--lime); color: var(--forest-2); }
+.personal-stat:first-child { background: var(--lime); border-color: var(--lime); color: var(--forest-2); }
 .personal-stat:first-child span { color: rgba(13,48,36,.68); }
 .scorecard { max-width: 720px; margin: 0 auto; }
 .scorecard.setup-only { max-width: 780px; }
@@ -507,8 +507,6 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
   .player-modal-header { margin-inline: -14px; padding: 20px 18px; border-radius: 20px 20px 15px 15px; }
   .player-modal-header h2 { font-size: 32px; }
   .personal-stat-grid { grid-template-columns: repeat(2, 1fr); }
-  .personal-stat:first-child { grid-column: span 1; }
-  .personal-stat:last-child { grid-column: span 2; }
   .personal-stat:nth-child(-n+3) { min-height: 92px; }
 }
 @media (min-width: 761px) and (max-width: 1024px) {
