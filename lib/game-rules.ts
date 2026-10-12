@@ -3,7 +3,7 @@ import type { GameFormat, GameRules } from "./domain";
 export const RULE_PRESETS: Record<GameFormat, GameRules> = {
   "rest-dinkers-doubles": {
     id: "rest-dinkers-doubles",
-    name: "Rest Dinkers Rules",
+    name: "Custom Game Rules",
     description: "Custom doubles · First to 11 · No win-by-two",
     teamSize: 2,
     winningScore: 11,

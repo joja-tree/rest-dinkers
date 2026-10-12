@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { BookOpen, CalendarDays, Check, ChevronDown, Clock3, Copy, ExternalLink, Flag, History, Link2, LogOut, Plus, RotateCcw, Search, Send, Share2, Trash2, Users, X } from "lucide-react";
 import type { User } from "firebase/auth";
 import { createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut } from "firebase/auth";
-import type { GameFormat, Match, Session, Team } from "@/lib/domain";
+import type { GameFormat, GameRules, Match, Session, Team } from "@/lib/domain";
 import { applyCompletedRound } from "@/lib/fair-play";
 import { out, point, undo } from "@/lib/scoring";
 import { sessionSchema } from "@/lib/schemas";
@@ -16,6 +16,7 @@ import { acceptScorecardSubmission, closeSharedScorecard, createSharedScorecard,
 
 const STORAGE_KEY = "rest-dinkers-session-v1";
 const FORMAT_KEY = "rest-dinkers-game-format";
+const CUSTOM_RULES_KEY = "rest-dinkers-custom-rules";
 const BUILD_VERSION = process.env.NEXT_PUBLIC_BUILD_VERSION ?? "local";
 type SaveState = "saved" | "device";
 type PendingHistoryItem = SessionHistoryItem & { pendingSync?: boolean };
@@ -402,15 +403,39 @@ function Setup({ onCreate, user, saveState, onSignIn, onHistory, onRules }: { on
   const [players, setPlayers] = useState(["Alex", "Bea", "Cal", "Dani", "Eli", "Fran"]);
   const [error, setError] = useState("");
   const [format, setFormat] = useState<GameFormat>("rest-dinkers-doubles");
+  const [customRules, setCustomRules] = useState<GameRules>({ ...RULE_PRESETS["rest-dinkers-doubles"] });
 
   useEffect(() => {
     const saved = window.localStorage.getItem(FORMAT_KEY) as GameFormat | null;
     if (saved && saved in RULE_PRESETS) setFormat(saved);
+    const savedRules = readLocal<Partial<GameRules> | null>(CUSTOM_RULES_KEY, null);
+    if (savedRules) {
+      const preset = RULE_PRESETS["rest-dinkers-doubles"];
+      const winningScore = Number(savedRules.winningScore);
+      const serversPerSide = savedRules.serversPerSide === 1 ? 1 : 2;
+      setCustomRules({
+        ...preset,
+        winningScore: [7, 9, 11, 15, 21].includes(winningScore) ? winningScore : preset.winningScore,
+        winBy: savedRules.winBy === 2 ? 2 : 1,
+        serversPerSide,
+        openingServer: serversPerSide === 2 && savedRules.openingServer === 2 ? 2 : 1,
+      });
+    }
   }, []);
 
   function selectFormat(next: GameFormat) {
     setFormat(next);
     window.localStorage.setItem(FORMAT_KEY, next);
+    setError("");
+  }
+
+  function updateCustomRules(patch: Partial<GameRules>) {
+    setCustomRules((current) => {
+      const next = { ...current, ...patch };
+      if (next.serversPerSide === 1) next.openingServer = 1;
+      writeLocal(CUSTOM_RULES_KEY, next);
+      return next;
+    });
     setError("");
   }
 
@@ -425,7 +450,7 @@ function Setup({ onCreate, user, saveState, onSignIn, onHistory, onRules }: { on
       setError(`At least ${required} players are required for ${RULE_PRESETS[format].name}.`);
       return;
     }
-    onCreate(createSession(parsed.data.name, parsed.data.players, parsed.data.courts, format));
+    onCreate(createSession(parsed.data.name, parsed.data.players, parsed.data.courts, format, format === "rest-dinkers-doubles" ? customRules : undefined));
   }
 
   return (
@@ -444,15 +469,30 @@ function Setup({ onCreate, user, saveState, onSignIn, onHistory, onRules }: { on
           <div className="field">
             <label>Game Format</label>
             <div className="format-options">
-              {(Object.values(RULE_PRESETS) as (typeof RULE_PRESETS)[GameFormat][]).map((rules) => (
+              {(Object.values(RULE_PRESETS) as (typeof RULE_PRESETS)[GameFormat][]).map((preset) => {
+                const rules = preset.id === "rest-dinkers-doubles" ? customRules : preset;
+                const description = preset.id === "rest-dinkers-doubles"
+                  ? `Custom doubles · First to ${rules.winningScore} · ${rules.winBy === 2 ? "Win by 2" : "Win by 1"}`
+                  : rules.description;
+                return (
                 <button key={rules.id} className={format === rules.id ? "active" : ""} onClick={() => selectFormat(rules.id)}>
-                  <strong>{rules.name}</strong><small>{rules.description}</small>
+                  <strong>{rules.name}</strong><small>{description}</small>
                   {rules.id === "rest-dinkers-doubles" && <em>Saved Custom</em>}
                 </button>
-              ))}
+                );
+              })}
             </div>
             <p className="format-note">Your selected format is remembered for the next session.</p>
           </div>
+          {format === "rest-dinkers-doubles" && <div className="custom-rules-panel">
+            <div className="custom-rules-heading"><strong>Custom Game Rules</strong><small>Saved automatically on this device.</small></div>
+            <div className="custom-rules-grid">
+              <label><span>Points To Win</span><select className="select" value={customRules.winningScore} onChange={(event) => updateCustomRules({ winningScore: Number(event.target.value) })}>{[7, 9, 11, 15, 21].map((score) => <option key={score} value={score}>{score} Points</option>)}</select></label>
+              <label><span>Winning Margin</span><select className="select" value={customRules.winBy} onChange={(event) => updateCustomRules({ winBy: Number(event.target.value) as 1 | 2 })}><option value={1}>Win By 1</option><option value={2}>Win By 2</option></select></label>
+              <label><span>Service Turns</span><select className="select" value={customRules.serversPerSide} onChange={(event) => updateCustomRules({ serversPerSide: Number(event.target.value) as 1 | 2 })}><option value={1}>1 Per Side</option><option value={2}>2 Per Side</option></select></label>
+              <label><span>Opening Server</span><select className="select" value={customRules.openingServer} disabled={customRules.serversPerSide === 1} onChange={(event) => updateCustomRules({ openingServer: Number(event.target.value) as 1 | 2 })}><option value={1}>Player 1</option><option value={2}>Player 2</option></select></label>
+            </div>
+          </div>}
           <div className="field">
             <label htmlFor="session-name">Session Name</label>
             <input id="session-name" className="input" placeholder="Session Name" value={name} onChange={(event) => setName(event.target.value)} />
