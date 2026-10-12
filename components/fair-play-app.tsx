@@ -899,11 +899,8 @@ function PlayerStats({ player, session, onSelect }: { player: Session["players"]
 }
 
 function PersonalStats({ player, session, onClose }: { player: Session["players"][number]; session: Session; onClose: () => void }) {
-  const now = useNow();
   const allMatches = [...session.completedRounds, session.current].flatMap((round) => round.matches);
   const playerMatches = allMatches.filter((match) => [...match.teamA, ...match.teamB].includes(player.id));
-  const livePoints = session.current.matches.reduce((total, match) => total + match.pointScorers.filter((id) => id === player.id).length, 0);
-  const serves = playerMatches.reduce((total, match) => total + (match.serveCounts[player.id] ?? 0), 0);
   const completedPlayerMatches = playerMatches.filter((match) => match.winner);
   const wonMatch = (match: Match) => match.winner === "A" ? match.teamA.includes(player.id) : match.teamB.includes(player.id);
   const wins = completedPlayerMatches.filter(wonMatch).length;
@@ -912,19 +909,12 @@ function PersonalStats({ player, session, onClose }: { player: Session["players"
     if (!wonMatch(match)) break;
     winStreak += 1;
   }
-  const activeSeconds = session.current.matches.reduce((total, match) => {
-    if (!match.startedAt || ![...match.teamA, ...match.teamB].includes(player.id)) return total;
-    return total + Math.max(0, Math.floor(((match.endedAt ?? now) - match.startedAt) / 1000));
-  }, 0);
+  const games = completedPlayerMatches.length;
   const stats: [string, string | number][] = [
-    ["Points", player.points + livePoints],
-    ["Games", player.games],
+    ["Games", games],
     ["Wins", wins],
+    ["Win Rate", games ? `${Math.round((wins / games) * 100)}%` : "0%"],
     ["Win Streak", winStreak],
-    ["Avg. Points", player.games ? (player.points / player.games).toFixed(1) : "0.0"],
-    ["Court Time", formatTime(player.timePlayedSeconds + activeSeconds)],
-    ["Service Turns", serves],
-    ["Consecutive Games", player.consecutiveGames],
   ];
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
