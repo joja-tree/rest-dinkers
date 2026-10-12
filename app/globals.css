@@ -50,7 +50,8 @@ button { cursor: pointer; }
 .auth-switch { width: 100%; margin-top: 15px; border: 0; background: transparent; color: var(--forest); font-size: 12px; font-weight: 800; }
 .sign-in-button { white-space: nowrap; }
 .content { width: min(1080px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 70px; }
-.hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 34px; align-items: center; min-height: 65vh; }
+.hero { display: grid; grid-template-columns: 1.2fr .8fr; gap: 34px; align-items: start; min-height: 65vh; }
+.hero > section:first-child { padding-top: clamp(80px, 11vh, 125px); }
 .eyebrow { color: var(--lime-dark); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065em; margin: 12px 0 20px; }
 .lede { color: var(--muted); font-size: 18px; line-height: 1.55; max-width: 570px; }
@@ -466,6 +467,7 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
   .previous-rounds { order: 3; }
   .stats { order: 4; margin-top: 0; }
   .hero { padding-top: 12px; }
+  .hero > section:first-child { padding-top: 0; }
   .rules-button { width: 100%; }
   .rules-modal { border-radius: 22px; }
   .rules-header { padding: 21px 19px; }
