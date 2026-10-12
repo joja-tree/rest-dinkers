@@ -883,13 +883,12 @@ function MatchStatistics({ match, session }: { match: Match; session: Session })
   const now = useNow();
   const elapsed = match.startedAt ? Math.max(0, Math.floor(((match.endedAt ?? now) - match.startedAt) / 1000)) : 0;
   const teamServes = (team: readonly string[]) => team.reduce((total, id) => total + (match.serveCounts[id] ?? 0), 0);
-  const teamFaults = (team: readonly string[]) => team.reduce((total, id) => total + (match.faultCounts[id] ?? 0), 0);
   return (
     <section className="match-statistics card">
       <div className="match-stat-heading"><div><span className="eyebrow">Match Statistics</span><h2>At a Glance</h2></div><strong>{formatTime(elapsed)}</strong></div>
-      <div className="match-stat-grid header"><span>Team</span><span>Score</span><span>Service Turns</span><span>Side Outs</span></div>
-      <div className="match-stat-grid"><div><strong>Team A</strong><small>{names(match.teamA, session)}</small></div><span>{match.scoreA}</span><span>{teamServes(match.teamA)}</span><span>{teamFaults(match.teamA)}</span></div>
-      <div className="match-stat-grid"><div><strong>Team B</strong><small>{names(match.teamB, session)}</small></div><span>{match.scoreB}</span><span>{teamServes(match.teamB)}</span><span>{teamFaults(match.teamB)}</span></div>
+      <div className="match-stat-grid header"><span>Team</span><span>Score</span><span>Service Turns</span></div>
+      <div className="match-stat-grid"><div><strong>Team A</strong><small>{names(match.teamA, session)}</small></div><span>{match.scoreA}</span><span>{teamServes(match.teamA)}</span></div>
+      <div className="match-stat-grid"><div><strong>Team B</strong><small>{names(match.teamB, session)}</small></div><span>{match.scoreB}</span><span>{teamServes(match.teamB)}</span></div>
     </section>
   );
 }
@@ -905,7 +904,6 @@ function PersonalStats({ player, session, onClose }: { player: Session["players"
   const playerMatches = allMatches.filter((match) => [...match.teamA, ...match.teamB].includes(player.id));
   const livePoints = session.current.matches.reduce((total, match) => total + match.pointScorers.filter((id) => id === player.id).length, 0);
   const serves = playerMatches.reduce((total, match) => total + (match.serveCounts[player.id] ?? 0), 0);
-  const faults = playerMatches.reduce((total, match) => total + (match.faultCounts[player.id] ?? 0), 0);
   const activeSeconds = session.current.matches.reduce((total, match) => {
     if (!match.startedAt || ![...match.teamA, ...match.teamB].includes(player.id)) return total;
     return total + Math.max(0, Math.floor(((match.endedAt ?? now) - match.startedAt) / 1000));
@@ -915,7 +913,6 @@ function PersonalStats({ player, session, onClose }: { player: Session["players"
     ["Games", player.games],
     ["Court Time", formatTime(player.timePlayedSeconds + activeSeconds)],
     ["Service Turns", serves],
-    ["Side Outs", faults],
     ["Avg. Points", player.games ? (player.points / player.games).toFixed(1) : "0.0"],
     ["Consecutive Games", player.consecutiveGames],
   ];

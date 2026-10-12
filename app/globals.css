@@ -325,7 +325,7 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .match-stat-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 17px; }
 .match-stat-heading h2 { margin: 4px 0 0; font-size: 22px; letter-spacing: -.035em; }
 .match-stat-heading > strong { color: var(--muted); font-size: 18px; font-variant-numeric: tabular-nums; }
-.match-stat-grid { display: grid; grid-template-columns: minmax(130px, 1fr) 60px 70px 60px; gap: 9px; align-items: center; padding: 12px 10px; border-top: 1px solid var(--line); text-align: center; }
+.match-stat-grid { display: grid; grid-template-columns: minmax(130px, 1fr) 70px 90px; gap: 9px; align-items: center; padding: 12px 10px; border-top: 1px solid var(--line); text-align: center; }
 .match-stat-grid.header { padding-block: 7px; border-top: 0; color: var(--muted); font-size: 9px; font-weight: 900; letter-spacing: .07em; text-transform: uppercase; }
 .match-stat-grid > div { min-width: 0; text-align: left; }
 .match-stat-grid > div strong, .match-stat-grid > div small { display: block; }
@@ -485,7 +485,7 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
   .scores strong { font-size: clamp(64px, 22vw, 92px); }
   .scores .server { font-size: 42px; }
   .control { min-height: 84px; font-size: 21px; }
-  .match-stat-grid { grid-template-columns: minmax(105px, 1fr) 48px 55px 50px; padding-inline: 3px; }
+  .match-stat-grid { grid-template-columns: minmax(105px, 1fr) 52px 76px; padding-inline: 3px; }
   .starting-team-control { align-items: flex-start; flex-direction: column; }
   .starting-team-control > div { width: 100%; }
   .starting-team-control button { min-width: 0; }
