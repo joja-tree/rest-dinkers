@@ -650,20 +650,15 @@ function ClickableTeam({ team, ids, session, onPlayer }: { team: "A" | "B"; ids:
 }
 
 function Stats({ session }: { session: Session }) {
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
-  const selectedPlayer = session.players.find((player) => player.id === selectedPlayerId);
   return (
-    <>
-      <section className="card stats">
-        <h2 className="section-title">Player Statistics</h2>
-        <p className="stats-hint">Select a player to view their statistics.</p>
-        <div className="stat-table">
-          <div className="stat-row header"><span>Player</span><span>Games</span><span>Points</span></div>
-          {session.players.map((player) => <PlayerStats key={player.id} player={player} session={session} onSelect={() => setSelectedPlayerId(player.id)} />)}
-        </div>
-      </section>
-      {selectedPlayer && <PersonalStats player={selectedPlayer} session={session} onClose={() => setSelectedPlayerId(null)} />}
-    </>
+    <section className="card stats">
+      <h2 className="section-title">Player Statistics</h2>
+      <p className="stats-hint">Results from completed matches.</p>
+      <div className="stat-table">
+        <div className="stat-row header"><span>Player</span><span>Games</span><span>Wins</span><span>Win %</span><span>Streak</span></div>
+        {session.players.map((player) => <PlayerStats key={player.id} player={player} session={session} />)}
+      </div>
+    </section>
   );
 }
 
@@ -893,12 +888,7 @@ function MatchStatistics({ match, session }: { match: Match; session: Session })
   );
 }
 
-function PlayerStats({ player, session, onSelect }: { player: Session["players"][number]; session: Session; onSelect: () => void }) {
-  const livePoints = session.current.matches.reduce((total, match) => total + match.pointScorers.filter((id) => id === player.id).length, 0);
-  return <button className="stat-row player-stat-row" onClick={onSelect}><strong>{player.name}</strong><span>{player.games}</span><span>{player.points + livePoints}</span></button>;
-}
-
-function PersonalStats({ player, session, onClose }: { player: Session["players"][number]; session: Session; onClose: () => void }) {
+function PlayerStats({ player, session }: { player: Session["players"][number]; session: Session }) {
   const allMatches = [...session.completedRounds, session.current].flatMap((round) => round.matches);
   const playerMatches = allMatches.filter((match) => [...match.teamA, ...match.teamB].includes(player.id));
   const completedPlayerMatches = playerMatches.filter((match) => match.winner);
@@ -910,22 +900,8 @@ function PersonalStats({ player, session, onClose }: { player: Session["players"
     winStreak += 1;
   }
   const games = completedPlayerMatches.length;
-  const stats: [string, string | number][] = [
-    ["Games", games],
-    ["Wins", wins],
-    ["Win Rate", games ? `${Math.round((wins / games) * 100)}%` : "0%"],
-    ["Win Streak", winStreak],
-  ];
-  return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="player-modal" role="dialog" aria-modal="true" aria-labelledby="player-stat-title" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="player-modal-header"><div><span className="eyebrow">Player Statistics</span><h2 id="player-stat-title">{player.name}</h2></div><button className="modal-close" onClick={onClose} aria-label="Close player statistics">×</button></div>
-        <div className="personal-stat-grid">
-          {stats.map(([label, value]) => <div className="personal-stat" key={label}><span>{label}</span><strong>{value}</strong></div>)}
-        </div>
-      </section>
-    </div>
-  );
+  const winRate = games ? `${Math.round((wins / games) * 100)}%` : "0%";
+  return <div className="stat-row"><strong>{player.name}</strong><span>{games}</span><span>{wins}</span><span>{winRate}</span><span>{winStreak}</span></div>;
 }
 
 function useNow() {
