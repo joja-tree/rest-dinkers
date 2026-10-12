@@ -62,14 +62,18 @@ h1 { font-size: clamp(48px, 8vw, 86px); line-height: .96; letter-spacing: -.065e
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 7px; }
 .format-options { display: grid; gap: 8px; }
-.format-options > button { position: relative; display: grid; gap: 3px; width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); color: var(--ink); text-align: left; }
-.format-options > button.active { border-color: var(--forest); background: var(--forest); color: var(--cream); box-shadow: 0 0 0 3px rgba(21,63,48,.1); }
+.format-option { overflow: hidden; border: 1px solid var(--line); border-radius: 13px; background: var(--paper); }
+.format-option.active { border-color: var(--forest); background: var(--forest); color: var(--cream); box-shadow: 0 0 0 3px rgba(21,63,48,.1); }
+.format-choice { position: relative; display: grid; gap: 3px; width: 100%; padding: 12px 14px; border: 0; background: transparent; color: inherit; text-align: left; }
 .format-options strong { font-size: 13px; }
 .format-options small { color: var(--muted); font-size: 10px; line-height: 1.4; }
-.format-options > button.active small { color: rgba(242,239,215,.72); }
-.format-options em { position: absolute; top: 11px; right: 11px; padding: 4px 7px; border-radius: 999px; background: var(--lime); color: var(--forest-2); font-size: 8px; font-style: normal; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+.format-option.active .format-choice small { color: rgba(242,239,215,.72); }
+.format-choice-actions { position: absolute; top: 9px; right: 10px; display: flex; align-items: center; gap: 7px; }
+.format-choice-actions em { padding: 4px 7px; border-radius: 999px; background: var(--lime); color: var(--forest-2); font-size: 8px; font-style: normal; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+.format-choice-actions svg { transition: transform .18s ease; }
+.format-choice-actions svg.open { transform: rotate(180deg); }
 .format-note { margin: 7px 2px 0; color: var(--muted); font-size: 10px; }
-.custom-rules-panel { margin: -3px 0 18px; padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: var(--paper); }
+.custom-rules-panel { margin: 0 9px 9px; padding: 13px; border-radius: 11px; background: white; color: var(--ink); }
 .custom-rules-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
 .custom-rules-heading strong { font-size: 12px; }
 .custom-rules-heading small { color: var(--muted); font-size: 9px; }
