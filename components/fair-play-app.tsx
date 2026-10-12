@@ -810,6 +810,10 @@ function CourtPreview({ match, session, onChange, lockedTeams = [] }: { match: M
       <div className="court-net"><span>Net</span></div>
       <span className="court-team-label team-a-label">Team A</span>
       <span className="court-team-label team-b-label">Team B</span>
+      <span className="service-court-label team-a-left" aria-hidden="true">Left</span>
+      <span className="service-court-label team-a-right" aria-hidden="true">Right</span>
+      <span className="service-court-label team-b-right" aria-hidden="true">Right</span>
+      <span className="service-court-label team-b-left" aria-hidden="true">Left</span>
       {position("A", 0, "player-a1")}{position("A", 1, "player-a2")}{position("B", 0, "player-b1")}{position("B", 1, "player-b2")}
     </div>{selected && <SubstitutePicker match={match} team={selected.team} index={selected.index} session={session} onChoose={choosePlayer} onClose={() => setSelected(null)} />}</>
   );
