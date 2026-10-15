@@ -9,3 +9,5 @@ coverage
 .vercel
 work
 outputs
+# next-agents-md
+.next-docs/
